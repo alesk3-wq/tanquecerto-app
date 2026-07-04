@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS tanquecerto_teste CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE tanquecerto_teste;
+CREATE DATABASE IF NOT EXISTS tanquecerto CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE tanquecerto;
 
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,

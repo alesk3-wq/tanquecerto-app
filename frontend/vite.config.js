@@ -8,10 +8,10 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
+      // O backend monta a API sob /api — encaminha sem reescrever
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

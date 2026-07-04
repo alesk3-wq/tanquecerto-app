@@ -1,0 +1,60 @@
+Nome do Projeto
+Tanque Certo
+Problema que resolve
+
+Muitos motoristas não sabem se um posto é confiável até terem problemas com combustível adulterado ou atendimento ruim. O Tanque Certo ajuda os usuários a identificar postos seguros e bem avaliados através da experiência compartilhada da comunidade.
+
+Descrição
+
+O Tanque Certo é uma plataforma colaborativa que funciona como um "Waze da confiança dos postos de combustível", permitindo que motoristas encontrem os melhores postos próximos, visualizem avaliações reais e compartilhem suas próprias experiências.
+
+Principais funcionalidades
+🗺️ Mapa interativo
+
+Exibe postos de combustível próximos ao usuário com indicadores visuais de reputação.
+
+⭐ Avaliações da comunidade
+
+Usuários podem registrar experiências sobre:
+
+Qualidade do combustível;
+Atendimento;
+Problemas mecânicos após abastecimento;
+Suspeita de combustível adulterado;
+Experiência geral no posto.
+⛽ Cadastro colaborativo de postos
+
+Caso um posto ainda não exista no sistema, qualquer usuário pode adicioná-lo ao mapa.
+
+🚗 Navegação GPS
+
+Permite traçar rotas para os postos mais próximos e mais bem avaliados.
+
+📊 Sistema de reputação inteligente
+
+Cada posto recebe uma classificação baseada nos relatos da comunidade:
+
+🟢 Confiável
+🟡 Suspeito
+🔴 Problemas recorrentes
+⚪ Sem avaliações suficientes
+📈 Histórico e estatísticas
+
+Visualização do número de avaliações, relatos positivos, negativos e última atividade do posto.
+
+Funcionalidades futuras
+Notificações quando o usuário estiver próximo de um posto;
+Lembrete para avaliar após abastecer;
+Favoritos;
+Perfil e reputação dos usuários;
+Upload de fotos e comprovantes;
+Gamificação e ranking de colaboradores;
+Inteligência artificial para detectar padrões de fraude e postos suspeitos;
+Aplicativo mobile para Android e iPhone.
+Objetivo
+
+Criar a maior comunidade colaborativa de confiança dos postos de combustível do Brasil, ajudando motoristas a evitarem combustíveis de baixa qualidade e encontrarem postos recomendados pela própria comunidade.
+
+Resumo em uma frase
+
+Tanque Certo é uma plataforma colaborativa que utiliza a experiência dos próprios motoristas para indicar postos de combustível confiáveis e alertar sobre possíveis problemas, funcionando como um "Waze da confiança dos postos". 🚗⛽📍

@@ -1,0 +1,182 @@
+⭐ Sistema de favoritos
+
+Usuário salva seus postos preferidos.
+
+Exemplo:
+
+⭐ Posto Shell da Av. Brasil
+⭐ Posto Ipiranga Centro
+⛽ Registro de abastecimentos
+
+Guardar:
+
+data
+posto
+combustível
+litros
+valor
+km do veículo
+
+Assim o usuário terá um histórico.
+
+💲 Preço dos combustíveis
+
+Usuários informam:
+
+gasolina
+etanol
+diesel
+
+Com data da atualização.
+
+👍👎 Curtidas nos relatos
+
+Permitir que outros usuários indiquem:
+
+"esse relato me ajudou"
+"concordo"
+
+Isso aumenta a confiança dos relatos.
+
+
+🚗 Relacionado ao carro
+Histórico por veículo
+
+Cadastrar:
+
+carro
+modelo
+ano
+
+Exemplo:
+
+Honda City 2011
+Monza 1990
+Kadett GSI 1995
+Consumo médio
+
+Calcular:
+
+km/l
+
+por posto e por combustível.
+
+Poderia aparecer:
+
+Usuários com Honda City fazem em média 13,2 km/l neste posto.
+
+Problemas mecânicos
+
+Marcar se houve:
+
+falha no motor
+luz da injeção
+perda de potência
+dificuldade na partida
+entupimento de bico
+📍 GPS
+Rota para postos mais confiáveis
+
+Não apenas o mais próximo.
+
+Exemplo:
+
+Posto a 500 m (suspeito)
+
+Posto a 1,2 km (excelente)
+
+Deseja ir ao posto melhor avaliado?
+Alerta ao chegar no posto
+
+Quando o usuário entrar em um raio de 100 m:
+
+🟢 Posto confiável
+
+ou
+
+🔴 Atenção: relatos recentes de problemas neste posto.
+
+Lembrete após abastecer
+
+Algumas horas depois:
+
+Você abasteceu recentemente neste posto. Deseja avaliar?
+
+🏆 Gamificação
+
+Sistema de níveis:
+
+Novato
+Colaborador
+Especialista
+Veterano
+Guardião do Tanque
+
+Com medalhas:
+
+🏅 100 relatos úteis
+
+🏅 50 postos cadastrados
+
+🏅 1 ano de participação
+
+
+mais para o futuro, não agora..
+
+🤖 Inteligência Artificial
+
+Detectar:
+
+surtos de relatos negativos;
+possíveis fraudes;
+padrões suspeitos.
+
+Exemplo:
+
+7 usuários diferentes relataram falhas em veículos nas últimas 48 horas.
+
+🚨 Alertas comunitários
+
+Algo parecido com o Waze:
+
+⚠️ Muitos relatos negativos recentes.
+
+ou
+
+🟢 Posto recuperou a reputação.
+🛠️ Serviços automotivos
+
+Mostrar próximos:
+
+borracharias;
+oficinas;
+troca de óleo;
+auto elétricas;
+guinchos.
+📈 Dashboard administrativo
+
+Ver:
+
+postos mais avaliados;
+regiões com mais problemas;
+usuários mais ativos;
+estatísticas do sistema.
+🔥 Uma ideia que eu acho MUITO forte
+"Diário do veículo"
+
+O usuário registra:
+
+abastecimentos;
+consumo;
+troca de óleo;
+filtros;
+pneus;
+bateria;
+revisões.
+
+Aí o TanqueCerto deixa de ser apenas um app de postos e vira um verdadeiro companheiro do carro, algo entre:
+
+Fuelio;
+Drivvo;
+Waze;
+Reclame Aqui dos postos.

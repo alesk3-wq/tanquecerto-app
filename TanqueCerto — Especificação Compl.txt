@@ -1,0 +1,821 @@
+# TanqueCerto — Especificação Completa do Sistema
+
+## Visão Geral
+
+O TanqueCerto é uma plataforma colaborativa para motoristas avaliarem postos de combustíveis com foco em:
+
+* qualidade do combustível
+* confiança do posto
+* relatos de problemas mecânicos
+* reputação da gasolina/etanol/diesel
+* experiência de atendimento
+* localização inteligente por GPS
+
+A proposta principal é criar uma comunidade onde os próprios usuários ajudam outros motoristas a evitar combustíveis adulterados e encontrar postos confiáveis.
+
+---
+
+# Objetivos do Projeto
+
+## Objetivo Principal
+
+Permitir que usuários relatem experiências reais sobre postos de combustíveis.
+
+## Objetivos Secundários
+
+* Mapear postos próximos
+* Criar sistema de reputação
+* Detectar postos suspeitos
+* Facilitar relatos rápidos
+* Exibir avaliações em tempo real
+* Criar histórico de confiabilidade
+* Futuramente usar geolocalização automática
+* Futuramente enviar notificações quando usuário estiver próximo de um posto
+
+---
+
+# Tecnologias do Projeto
+
+## Backend
+
+* Node.js
+* Express
+* MySQL
+* JWT Authentication
+* bcryptjs
+* dotenv
+* cors
+
+## Frontend (planejado)
+
+* React
+* Vite
+* TailwindCSS
+* React Router
+* Axios
+* Leaflet / Google Maps
+* Context API
+
+## Mobile (futuro)
+
+* React Native
+  ou
+* Flutter
+
+---
+
+# Estrutura Atual do Backend
+
+```txt
+/app.js
+/src
+  /config
+    db.js
+
+  /middlewares
+    auth.js
+    errorHandler.js
+
+  /routes
+    stations.js
+    reports.js
+    auth.js
+```
+
+---
+
+# Estrutura Recomendada Futuramente
+
+```txt
+/src
+  /config
+  /controllers
+  /services
+  /middlewares
+  /routes
+  /models
+  /utils
+```
+
+---
+
+# Banco de Dados
+
+## Tabela: users
+
+```sql
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  phone VARCHAR(20) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+## Tabela: stations
+
+```sql
+CREATE TABLE stations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  brand VARCHAR(100),
+  latitude DECIMAL(10,8) NOT NULL,
+  longitude DECIMAL(11,8) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+## Tabela: reports
+
+```sql
+CREATE TABLE reports (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  station_id INT NOT NULL,
+  type ENUM('good', 'suspect', 'bad') NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (station_id) REFERENCES stations(id)
+);
+```
+
+---
+
+# Sistema de Reputação
+
+## Lógica Atual
+
+### Relato positivo
+
+```txt
++2 pontos
+```
+
+### Relato suspeito
+
+```txt
+-1 ponto
+```
+
+### Relato negativo
+
+```txt
+-2 pontos
+```
+
+---
+
+## Resultado da reputação
+
+### GOOD
+
+Posto confiável.
+
+### SUSPECT
+
+Posto com relatos mistos.
+
+### BAD
+
+Posto com muitos relatos negativos.
+
+### UNKNOWN
+
+Sem relatos suficientes.
+
+---
+
+# Funcionalidades Já Implementadas
+
+## Cadastro de postos
+
+Endpoint:
+
+```http
+POST /stations
+```
+
+Função:
+
+Permite cadastrar novos postos.
+
+---
+
+## Listagem de postos
+
+Endpoint:
+
+```http
+GET /stations
+```
+
+Recursos:
+
+* paginação
+* organização por data
+
+---
+
+## Buscar postos próximos
+
+Endpoint:
+
+```http
+GET /stations/near
+```
+
+Recursos:
+
+* geolocalização
+* cálculo de distância
+* reputação automática
+* score automático
+
+---
+
+## Buscar posto específico
+
+Endpoint:
+
+```http
+GET /stations/:id
+```
+
+---
+
+## Estatísticas do posto
+
+Endpoint:
+
+```http
+GET /stations/:id/stats
+```
+
+Informações:
+
+* total de relatos
+* quantidade de positivos
+* quantidade de suspeitos
+* quantidade de negativos
+* reputação
+* score
+* último relato
+
+---
+
+## Relatos do posto
+
+Endpoint:
+
+```http
+GET /stations/:id/reports
+```
+
+Recursos:
+
+* paginação
+* nome do usuário
+* histórico completo
+
+---
+
+## Cadastro de relatos
+
+Endpoint:
+
+```http
+POST /reports
+```
+
+Regras:
+
+* apenas 1 relato por usuário por dia
+* validação de tipo
+* validação de campos
+
+---
+
+## Cadastro de usuários
+
+Endpoint:
+
+```http
+POST /auth/register
+```
+
+Recursos:
+
+* senha criptografada
+* validação de email
+* telefone opcional
+
+---
+
+## Login JWT
+
+Endpoint:
+
+```http
+POST /auth/login
+```
+
+Recursos:
+
+* token JWT
+* autenticação moderna
+* sessão segura
+
+---
+
+# Segurança Atual
+
+## Implementado
+
+* bcrypt para senha
+* JWT Authentication
+* validação de campos
+* paginação
+* tratamento centralizado de erro
+* proteção contra spam básico
+
+---
+
+# Funcionalidades Futuras
+
+## Sistema de GPS Inteligente
+
+Quando o usuário chegar próximo do posto:
+
+* aplicativo detecta localização
+* exibe reputação automaticamente
+* pergunta sobre experiência
+
+---
+
+## Notificações
+
+Exemplos:
+
+* "Você abasteceu recentemente neste posto. Deseja avaliar?"
+* "Posto próximo possui relatos suspeitos."
+
+---
+
+## Sistema de confiança do usuário
+
+Usuários ganharão reputação baseada em:
+
+* quantidade de relatos
+* consistência
+* curtidas
+* denúncias falsas
+
+---
+
+## Fotos dos postos
+
+Usuários poderão:
+
+* enviar fotos
+* enviar comprovantes
+* registrar problemas
+
+---
+
+## Dashboard Administrativo
+
+Painel para:
+
+* monitoramento
+* denúncias
+* moderação
+* métricas
+* estatísticas
+
+---
+
+# Estrutura Recomendada do Frontend
+
+## Estrutura de Pastas
+
+```txt
+/src
+  /api
+    api.js
+
+  /components
+    Header.jsx
+    BottomMenu.jsx
+    StationCard.jsx
+    ReportCard.jsx
+    ReputationBadge.jsx
+    Loading.jsx
+
+  /pages
+    Home.jsx
+    Map.jsx
+    StationDetails.jsx
+    Login.jsx
+    Register.jsx
+    Profile.jsx
+    AddStation.jsx
+    AddReport.jsx
+
+  /contexts
+    AuthContext.jsx
+
+  /services
+    authService.js
+    stationService.js
+    reportService.js
+
+  /styles
+
+  App.jsx
+  main.jsx
+```
+
+---
+
+# Telas do Aplicativo
+
+## Tela Inicial
+
+Arquivo:
+
+```txt
+/pages/Home.jsx
+```
+
+Funções:
+
+* mapa principal
+* postos próximos
+* reputação visual
+* busca
+* filtros
+
+---
+
+## Tela de Detalhes do Posto
+
+Arquivo:
+
+```txt
+/pages/StationDetails.jsx
+```
+
+Informações:
+
+* nome
+* bandeira
+* reputação
+* relatos
+* score
+* distância
+* botão avaliar
+
+---
+
+## Tela de Login
+
+Arquivo:
+
+```txt
+/pages/Login.jsx
+```
+
+Campos:
+
+* email
+* senha
+
+---
+
+## Tela de Cadastro
+
+Arquivo:
+
+```txt
+/pages/Register.jsx
+```
+
+Campos:
+
+* nome
+* email
+* telefone
+* senha
+
+---
+
+## Tela de Cadastro de Relato
+
+Arquivo:
+
+```txt
+/pages/AddReport.jsx
+```
+
+Campos:
+
+* tipo do relato
+* descrição
+* nota
+
+---
+
+## Tela de Cadastro de Posto
+
+Arquivo:
+
+```txt
+/pages/AddStation.jsx
+```
+
+Campos:
+
+* nome
+* bandeira
+* localização GPS
+
+---
+
+## Tela de Perfil
+
+Arquivo:
+
+```txt
+/pages/Profile.jsx
+```
+
+Informações:
+
+* histórico do usuário
+* relatos enviados
+* reputação do usuário
+* favoritos
+
+---
+
+# Componentes Visuais Importantes
+
+## StationCard
+
+Exibe:
+
+* nome
+* distância
+* reputação
+* score
+* bandeira
+
+---
+
+## ReputationBadge
+
+Indicadores:
+
+```txt
+GOOD → verde
+SUSPECT → amarelo
+BAD → vermelho
+UNKNOWN → cinza
+```
+
+---
+
+## BottomMenu
+
+Menu inferior do app:
+
+* mapa
+* favoritos
+* perfil
+* adicionar relato
+
+---
+
+# Fluxo do Usuário
+
+## Fluxo Principal
+
+```txt
+Usuário abre app
+↓
+Mapa mostra postos próximos
+↓
+Usuário toca em um posto
+↓
+Sistema exibe reputação
+↓
+Usuário visualiza relatos
+↓
+Usuário cria avaliação
+```
+
+---
+
+# Experiência Visual Recomendada
+
+## Estilo
+
+* moderno
+* minimalista
+* foco em mapa
+* cores fortes para reputação
+* navegação simples
+
+---
+
+# Cores Recomendadas
+
+## GOOD
+
+```txt
+Verde
+```
+
+## SUSPECT
+
+```txt
+Amarelo
+```
+
+## BAD
+
+```txt
+Vermelho
+```
+
+## UNKNOWN
+
+```txt
+Cinza
+```
+
+---
+
+# Integração Frontend ↔ Backend
+
+## API Base
+
+```txt
+http://localhost:3000
+```
+
+---
+
+## Exemplo Frontend
+
+```javascript
+fetch('http://localhost:3000/stations/near?lat=-22.31&lng=-49.06')
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+---
+
+# Possibilidades Futuras
+
+## Inteligência Artificial
+
+* detectar padrões suspeitos
+* analisar relatos repetidos
+* identificar fraude
+* detectar postos problemáticos automaticamente
+
+---
+
+## Machine Learning
+
+Previsão de:
+
+* postos suspeitos
+* variação de qualidade
+* comportamento de usuários
+
+---
+
+## Gamificação
+
+* níveis de usuário
+* medalhas
+* ranking
+* confiança
+
+---
+
+# Objetivo Final do Projeto
+
+Criar uma plataforma nacional colaborativa para aumentar a segurança dos motoristas e combater combustíveis adulterados através da inteligência coletiva dos usuários.
+
+---
+
+# Status Atual do Projeto
+
+## Backend
+
+```txt
+70% concluído
+```
+
+## Frontend
+
+```txt
+Planejamento iniciado
+```
+
+## Mobile
+
+```txt
+Futuro
+```
+
+---
+
+# Diferenciais do TanqueCerto
+
+* foco em combustível adulterado
+* reputação colaborativa
+* geolocalização inteligente
+* relatos rápidos
+* sistema comunitário
+* integração futura com GPS e notificações
+* foco real em segurança do motorista
+
+---
+
+# Ideia Central
+
+"Um Waze da confiança dos postos de combustível"
+
+---
+
+# Resumo Técnico
+
+## Backend
+
+Node.js + Express + MySQL + JWT
+
+## Frontend
+
+React + Tailwind + Mapas
+
+## Mobile
+
+React Native ou Flutter
+
+## Banco
+
+MySQL
+
+## Segurança
+
+bcrypt + JWT
+
+---
+
+# Roadmap Futuro
+
+## Fase 1
+
+* backend funcional
+* autenticação
+* reputação
+* relatos
+
+## Fase 2
+
+* frontend web
+* mapa interativo
+* integração completa
+
+## Fase 3
+
+* aplicativo mobile
+* GPS inteligente
+* notificações
+
+## Fase 4
+
+* IA
+* gamificação
+* analytics
+* painel administrativo
+
+---
+
+# Conclusão
+
+O TanqueCerto é uma plataforma moderna focada em colaboração comunitária, segurança automotiva e inteligência coletiva para ajudar motoristas a identificarem postos confiáveis e evitarem combustíveis suspeitos.
+
+O sistema possui potencial para evoluir para aplicativo nacional com forte integração mobile, geolocalização e análise inteligente de reputação.

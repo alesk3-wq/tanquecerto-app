@@ -2,20 +2,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
 import ReputationBadge from '../components/ReputationBadge';
+import ErrorMessage from '../components/ErrorMessage';
 import { useAuth } from '../contexts/AuthContext';
+import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 
-const FUEL_LABELS  = { gasoline: 'Gasolina', ethanol: 'Etanol', diesel: 'Diesel', gnv: 'GNV' };
-const FUEL_ORDER   = ['gasoline', 'ethanol', 'diesel', 'gnv'];
 const TYPE_CONFIG  = {
   good:    { label: 'Positivo',  icon: '✅', color: 'text-green-400',  bg: 'bg-green-900/20',  border: 'border-green-800/40' },
   suspect: { label: 'Suspeito', icon: '⚠️', color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-800/40' },
   bad:     { label: 'Negativo', icon: '❌', color: 'text-red-400',    bg: 'bg-red-900/20',    border: 'border-red-800/40'    },
 };
 const HERO_GRADIENT = {
-  good:    'from-green-900/40 to-[#0a1628]',
-  suspect: 'from-yellow-900/40 to-[#0a1628]',
-  bad:     'from-red-900/40 to-[#0a1628]',
-  unknown: 'from-slate-800/40 to-[#0a1628]',
+  good:    'from-green-900/40 to-navy-900',
+  suspect: 'from-yellow-900/40 to-navy-900',
+  bad:     'from-red-900/40 to-navy-900',
+  unknown: 'from-slate-800/40 to-navy-900',
 };
 
 function timeAgo(dateStr) {
@@ -39,7 +39,9 @@ export default function StationDetails() {
   const [prices, setPrices]     = useState([]);
   const [favorited, setFavorited] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [favError, setFavError] = useState('');
   const [loading, setLoading]   = useState(true);
+  const [pageError, setPageError] = useState('');
 
   // Price form state
   const [showPriceForm, setShowPriceForm] = useState(false);
@@ -52,34 +54,51 @@ export default function StationDetails() {
     setPrices(data);
   }, [id]);
 
+  // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
+  const loadStation = useCallback(async () => {
+    try {
+      const [s, st, r] = await Promise.all([
+        api.get(`/stations/${id}`),
+        api.get(`/stations/${id}/stats`),
+        api.get(`/stations/${id}/reports`),
+      ]);
+      setStation(s.data);
+      setStats(st.data);
+      setReports(r.data.data);
+      setPageError('');
+    } catch (err) {
+      // Posto inexistente → volta ao mapa; outros erros → mensagem com retry
+      if (err.response?.status === 404) {
+        navigate('/');
+        return;
+      }
+      setPageError('Não foi possível carregar o posto.');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, navigate]);
+
+  // Fetch-on-mount: os setState acontecem após o await, não sincronamente.
   useEffect(() => {
-    // Requisições críticas — se falharem, volta ao mapa
-    Promise.all([
-      api.get(`/stations/${id}`),
-      api.get(`/stations/${id}/stats`),
-      api.get(`/stations/${id}/reports`),
-    ])
-      .then(([s, st, r]) => {
-        setStation(s.data);
-        setStats(st.data);
-        setReports(r.data.data);
-      })
-      .catch(() => navigate('/'))
-      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadStation();
 
     // Requisições opcionais — não bloqueiam a página
     api.get(`/stations/${id}/prices`).then(({ data }) => setPrices(data)).catch(() => {});
     if (user) {
       api.get(`/favorites/${id}`).then(({ data }) => setFavorited(data.favorited)).catch(() => {});
     }
-  }, [id, navigate, user]);
+  }, [id, user, loadStation]);
 
   async function toggleFavorite() {
     if (!user) { navigate('/login'); return; }
     setFavLoading(true);
+    setFavError('');
     try {
       const { data } = await api.post(`/favorites/${id}`);
       setFavorited(data.favorited);
+    } catch {
+      setFavError('Não foi possível atualizar o favorito.');
     } finally {
       setFavLoading(false);
     }
@@ -107,9 +126,19 @@ export default function StationDetails() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-[#f59e0b] border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
+  if (pageError) return (
+    <div className="max-w-2xl mx-auto p-4">
+      <ErrorMessage
+        message={pageError}
+        onRetry={() => { setLoading(true); setPageError(''); loadStation(); }}
+      />
+    </div>
+  );
+
   if (!station) return null;
 
   const rep = stats?.reputation ?? 'unknown';
@@ -119,7 +148,7 @@ export default function StationDetails() {
       {/* Hero header */}
       <div className={`bg-gradient-to-b ${HERO_GRADIENT[rep]} px-4 pt-4 pb-6`}>
         <button onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-[#f59e0b] transition-colors mb-4">
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-accent transition-colors mb-4">
           ← Voltar
         </button>
 
@@ -135,34 +164,32 @@ export default function StationDetails() {
             <button
               onClick={toggleFavorite}
               disabled={favLoading}
+              aria-pressed={favorited}
+              aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
               title={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-              style={{
-                background: favorited ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${favorited ? 'rgba(245,158,11,0.4)' : '#1a2d50'}`,
-                borderRadius: 10, padding: '6px 10px',
-                cursor: favLoading ? 'not-allowed' : 'pointer',
-                fontSize: 18, lineHeight: 1, transition: 'all 0.2s',
-                opacity: favLoading ? 0.6 : 1,
-              }}
+              className={`rounded-[10px] px-2.5 py-1.5 text-lg leading-none border transition-all
+                ${favorited ? 'bg-accent/15 border-accent/40' : 'bg-white/5 border-navy-600'}
+                ${favLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {favorited ? '⭐' : '☆'}
             </button>
           </div>
         </div>
+        {favError && <p className="text-xs text-red-400 text-right mt-2">{favError}</p>}
       </div>
 
       <div className="px-4 space-y-4 pb-8">
         {/* Stats card */}
         {stats && (
-          <div className="bg-[#0d1a35] rounded-2xl border border-[#1a2d50] overflow-hidden -mt-2">
-            <div className="grid grid-cols-4 divide-x divide-[#1a2d50]">
+          <div className="bg-navy-800 rounded-2xl border border-navy-600 overflow-hidden -mt-2">
+            <div className="grid grid-cols-4 divide-x divide-navy-600">
               <StatBox label="Total"     value={stats.total}   color="text-slate-100" />
               <StatBox label="Positivos" value={stats.good}    color="text-green-400" />
               <StatBox label="Suspeitos" value={stats.suspect} color="text-yellow-400" />
               <StatBox label="Negativos" value={stats.bad}     color="text-red-400" />
             </div>
             {stats.score !== 0 && (
-              <div className="px-4 py-3 border-t border-[#1a2d50] flex items-center justify-between">
+              <div className="px-4 py-3 border-t border-navy-600 flex items-center justify-between">
                 <span className="text-sm text-slate-500">Pontuação da comunidade</span>
                 <span className={`text-sm font-bold ${stats.score > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {stats.score > 0 ? '+' : ''}{stats.score} pts
@@ -173,18 +200,14 @@ export default function StationDetails() {
         )}
 
         {/* Preços */}
-        <div className="bg-[#0d1a35] rounded-2xl border border-[#1a2d50] overflow-hidden">
-          <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-[#1a2d50]">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 overflow-hidden">
+          <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-navy-600">
             <h2 className="font-semibold text-slate-200">💲 Preços informados</h2>
             {user && (
               <button
                 onClick={() => setShowPriceForm((v) => !v)}
-                style={{
-                  background: showPriceForm ? 'rgba(245,158,11,0.1)' : 'transparent',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  color: '#f59e0b', fontSize: 12, fontWeight: 600,
-                  borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
-                }}
+                className={`text-xs font-semibold text-accent border border-accent/30 rounded-lg px-2.5 py-1 transition-colors
+                  ${showPriceForm ? 'bg-accent/10' : 'bg-transparent hover:bg-accent/5'}`}
               >
                 {showPriceForm ? 'Cancelar' : '+ Informar'}
               </button>
@@ -193,13 +216,13 @@ export default function StationDetails() {
 
           {/* Form de preço */}
           {showPriceForm && (
-            <form onSubmit={handlePriceSubmit} className="px-4 py-3 border-b border-[#1a2d50] flex flex-wrap gap-2 items-end">
+            <form onSubmit={handlePriceSubmit} className="px-4 py-3 border-b border-navy-600 flex flex-wrap gap-2 items-end">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Combustível</label>
                 <select
                   value={priceForm.fuel_type}
                   onChange={(e) => setPriceForm({ ...priceForm, fuel_type: e.target.value })}
-                  className="bg-[#060d1f] border border-[#1a2d50] text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b]/50"
+                  className="bg-navy-950 border border-navy-600 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-accent/50"
                 >
                   {FUEL_ORDER.map((f) => <option key={f} value={f}>{FUEL_LABELS[f]}</option>)}
                 </select>
@@ -211,16 +234,12 @@ export default function StationDetails() {
                   placeholder="5.799"
                   value={priceForm.price}
                   onChange={(e) => setPriceForm({ ...priceForm, price: e.target.value })}
-                  className="w-28 bg-[#060d1f] border border-[#1a2d50] text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b]/50"
+                  className="w-28 bg-navy-950 border border-navy-600 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-accent/50"
                 />
               </div>
               <button
                 type="submit" disabled={priceLoading}
-                style={{
-                  background: '#f59e0b', color: '#060d1f', fontWeight: 700,
-                  fontSize: 13, border: 'none', borderRadius: 8,
-                  padding: '8px 16px', cursor: 'pointer', opacity: priceLoading ? 0.6 : 1,
-                }}
+                className="bg-accent text-navy-950 font-bold text-[13px] rounded-lg px-4 py-2 disabled:opacity-60"
               >
                 {priceLoading ? '...' : 'Salvar'}
               </button>
@@ -234,12 +253,12 @@ export default function StationDetails() {
               <p className="text-slate-500 text-sm">Nenhum preço informado ainda.</p>
               {!user && (
                 <p className="text-xs text-slate-600 mt-1">
-                  <Link to="/login" className="text-[#f59e0b]">Faça login</Link> para informar preços.
+                  <Link to="/login" className="text-accent">Faça login</Link> para informar preços.
                 </p>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-[#1a2d50]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-navy-600">
               {FUEL_ORDER.map((fuel) => {
                 const p = prices.find((x) => x.fuel_type === fuel);
                 return (
@@ -247,7 +266,7 @@ export default function StationDetails() {
                     <p className="text-xs text-slate-500 mb-1">{FUEL_LABELS[fuel]}</p>
                     {p ? (
                       <>
-                        <p className="text-base font-bold text-[#f59e0b]">
+                        <p className="text-base font-bold text-accent">
                           R$ {parseFloat(p.price).toFixed(3)}
                         </p>
                         <p className="text-[10px] text-slate-600 mt-0.5">{timeAgo(p.updated_at)}</p>
@@ -267,21 +286,21 @@ export default function StationDetails() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => navigate(`/stations/${id}/report`)}
-              className="bg-[#f59e0b] text-[#060d1f] font-bold py-3 rounded-xl hover:bg-[#d97706] transition-colors shadow-lg shadow-[#f59e0b]/20 flex items-center justify-center gap-1.5 text-sm"
+              className="bg-accent text-navy-950 font-bold py-3 rounded-xl hover:bg-accent-dark transition-colors shadow-lg shadow-accent/20 flex items-center justify-center gap-1.5 text-sm"
             >
               ✍️ Avaliar
             </button>
             <button
               onClick={() => navigate(`/stations/${id}/refuel`)}
-              className="bg-[#0d1a35] border border-[#1a2d50] text-slate-200 font-bold py-3 rounded-xl hover:border-[#f59e0b]/40 hover:bg-[#0f2147] transition-all flex items-center justify-center gap-1.5 text-sm"
+              className="bg-navy-800 border border-navy-600 text-slate-200 font-bold py-3 rounded-xl hover:border-accent/40 hover:bg-navy-750 transition-all flex items-center justify-center gap-1.5 text-sm"
             >
               ⛽ Abastecer
             </button>
           </div>
         ) : (
-          <div className="bg-[#0d1a35] rounded-xl border border-[#1a2d50] p-4 text-center">
+          <div className="bg-navy-800 rounded-xl border border-navy-600 p-4 text-center">
             <p className="text-sm text-slate-400">
-              <Link to="/login" className="text-[#f59e0b] font-semibold hover:underline">Faça login</Link>
+              <Link to="/login" className="text-accent font-semibold hover:underline">Faça login</Link>
               {' '}para avaliar este posto
             </p>
           </div>
@@ -291,18 +310,18 @@ export default function StationDetails() {
         <div>
           <h2 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
             Avaliações
-            <span className="text-xs font-normal text-slate-500 bg-[#1a2d50] px-2 py-0.5 rounded-full">
+            <span className="text-xs font-normal text-slate-500 bg-navy-600 px-2 py-0.5 rounded-full">
               {stats?.total ?? 0}
             </span>
           </h2>
 
           {reports.length === 0 ? (
-            <div className="text-center py-10 bg-[#0d1a35] rounded-2xl border border-dashed border-[#1a2d50]">
-              <p className="text-3xl mb-2">🗳️</p>
+            <div className="text-center py-10 bg-navy-800 rounded-2xl border border-dashed border-navy-600">
+              <p className="text-3xl mb-2" aria-hidden="true">🗳️</p>
               <p className="text-slate-500 text-sm">Nenhuma avaliação ainda.</p>
               {user && (
                 <button onClick={() => navigate(`/stations/${id}/report`)}
-                  className="mt-3 text-sm text-[#f59e0b] hover:underline font-medium">
+                  className="mt-3 text-sm text-accent hover:underline font-medium">
                   Seja o primeiro a avaliar →
                 </button>
               )}
@@ -328,16 +347,20 @@ function ReportCard({ report: r, tc, user }) {
   const [voted, setVoted]   = useState(r.user_voted);
   const [count, setCount]   = useState(Number(r.vote_count));
   const [busy, setBusy]     = useState(false);
+  const [voteError, setVoteError] = useState(false);
 
   async function handleVote(e) {
     e.stopPropagation();
     if (!user) { navigate('/login'); return; }
     if (busy) return;
     setBusy(true);
+    setVoteError(false);
     try {
       const { data } = await api.post(`/reports/${r.id}/vote`);
       setVoted(data.voted);
       setCount((c) => data.voted ? c + 1 : c - 1);
+    } catch {
+      setVoteError(true);
     } finally {
       setBusy(false);
     }
@@ -347,7 +370,7 @@ function ReportCard({ report: r, tc, user }) {
     <div className={`rounded-xl border p-4 ${tc.bg} ${tc.border}`}>
       <div className="flex items-center justify-between mb-2">
         <span className={`text-sm font-semibold ${tc.color}`}>{tc.icon} {tc.label}</span>
-        <span className="text-xs text-slate-500 bg-[#060d1f]/50 px-2 py-0.5 rounded-full">
+        <span className="text-xs text-slate-500 bg-navy-950/50 px-2 py-0.5 rounded-full">
           {FUEL_LABELS[r.fuel_type] ?? r.fuel_type}
         </span>
       </div>
@@ -358,25 +381,22 @@ function ReportCard({ report: r, tc, user }) {
         <p className="text-xs text-slate-600">
           {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
         </p>
-        <button
-          onClick={handleVote}
-          disabled={busy}
-          title="Esse relato me ajudou"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            background: voted ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${voted ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 8, padding: '3px 10px 3px 8px',
-            cursor: busy ? 'not-allowed' : 'pointer',
-            color: voted ? '#f59e0b' : '#64748b',
-            fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          <span style={{ fontSize: 14 }}>👍</span>
-          {count > 0 && <span>{count}</span>}
-          {count === 0 && <span>Útil</span>}
-        </button>
+        <div className="flex items-center gap-2">
+          {voteError && <span className="text-[11px] text-red-400">Falhou, tente de novo</span>}
+          <button
+            onClick={handleVote}
+            disabled={busy}
+            aria-pressed={voted}
+            aria-label="Marcar relato como útil"
+            title="Esse relato me ajudou"
+            className={`flex items-center gap-1.5 rounded-lg pl-2 pr-2.5 py-[3px] text-xs font-semibold border transition-all
+              ${voted ? 'bg-accent/15 border-accent/35 text-accent' : 'bg-white/5 border-white/10 text-rep-unknown'}
+              ${busy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <span className="text-sm" aria-hidden="true">👍</span>
+            {count > 0 ? <span>{count}</span> : <span>Útil</span>}
+          </button>
+        </div>
       </div>
     </div>
   );

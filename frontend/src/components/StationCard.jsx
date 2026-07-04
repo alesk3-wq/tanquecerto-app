@@ -1,21 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import ReputationBadge from './ReputationBadge';
-
-const ACCENT = {
-  good:    '#00e676',
-  suspect: '#facc15',
-  bad:     '#ef4444',
-  unknown: '#475569',
-};
+import { repColor } from '../constants/reputation';
 
 export default function StationCard({ station }) {
   const navigate = useNavigate();
-  const accent = ACCENT[station.reputation] ?? ACCENT.unknown;
+  const accent = repColor(station.reputation);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => navigate(`/stations/${station.id}`)}
-      className="relative bg-[#0d1a35] rounded-xl cursor-pointer hover:bg-[#0f2147] active:scale-[0.98] transition-all overflow-hidden"
+      className="relative block w-full text-left bg-navy-800 rounded-xl cursor-pointer hover:bg-navy-750 active:scale-[0.98] transition-all overflow-hidden"
       style={{ borderLeft: `4px solid ${accent}` }}
     >
       <div className="p-4">
@@ -34,20 +29,20 @@ export default function StationCard({ station }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#1a2d50]">
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-navy-600">
           {station.distance !== undefined && (
             <span className="text-xs text-slate-400 flex items-center gap-1.5">
-              <span className="text-base">📍</span>
+              <span className="text-base" aria-hidden="true">📍</span>
               <span>{station.distance} km de distância</span>
             </span>
           )}
           {station.score !== undefined && (
-            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b]">
+            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
               {station.score > 0 ? '+' : ''}{station.score} pts
             </span>
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 }

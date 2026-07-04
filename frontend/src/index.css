@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/* Tokens do tema — cores de reputação também existem em src/constants/reputation.js
+   (para uso em SVG/styles inline). Manter os dois em sincronia. */
+@theme {
+  --color-navy-950: #060d1f; /* fundo do app */
+  --color-navy-900: #0a1628; /* topbar/painéis/sidebar */
+  --color-navy-800: #0d1a35; /* cards */
+  --color-navy-750: #0f2147; /* hover de card */
+  --color-navy-600: #1a2d50; /* bordas */
+  --color-navy-500: #2a4070; /* bordas hover */
+  --color-accent: #f59e0b;
+  --color-accent-dark: #d97706;
+  --color-rep-good: #00e676;
+  --color-rep-suspect: #facc15;
+  --color-rep-bad: #ef4444;
+  --color-rep-unknown: #64748b;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

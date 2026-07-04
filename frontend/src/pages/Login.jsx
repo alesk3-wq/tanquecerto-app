@@ -1,31 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
-
-const inputStyle = {
-  width: '100%',
-  background: 'rgba(6,13,31,0.7)',
-  border: '1px solid #1a2d50',
-  borderRadius: 12,
-  padding: '12px 16px',
-  color: '#f1f5f9',
-  fontSize: 14,
-  outline: 'none',
-  boxSizing: 'border-box',
-};
-
-const labelStyle = {
-  display: 'block',
-  color: '#475569',
-  fontSize: 11,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: 8,
-};
+import ErrorMessage from '../components/ErrorMessage';
+import AuthLayout, { AuthSubmitButton, authInputClass, authLabelClass } from '../layouts/AuthLayout';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -33,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -41,7 +20,7 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', form);
       login(data.token, data.user);
-      navigate('/');
+      navigate(location.state?.from ?? '/');
     } catch (err) {
       setError(err.response?.data?.error ?? 'Erro ao fazer login.');
     } finally {
@@ -50,132 +29,49 @@ export default function Login() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
+    <AuthLayout
+      subtitle="O Waze dos postos de combustível"
+      cardTitle="Entrar na conta"
+      footer={
+        <>
+          Não tem conta?{' '}
+          <Link to="/register" className="text-accent font-semibold hover:underline">
+            Cadastre-se grátis
+          </Link>
+        </>
+      }
+    >
+      <ErrorMessage message={error} className="mb-4" />
 
-      {/* Mapa de fundo — estático, sem interação */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        <MapContainer
-          center={[-23.55, -46.63]}
-          zoom={14}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-          dragging={false}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          keyboard={false}
-          touchZoom={false}
-          boxZoom={false}
-          attributionControl={false}
-        >
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-        </MapContainer>
-      </div>
-
-      {/* Overlay escuro para legibilidade */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 1,
-        background: 'linear-gradient(135deg, rgba(6,13,31,0.90) 0%, rgba(10,22,40,0.78) 50%, rgba(6,13,31,0.93) 100%)',
-      }} />
-
-      {/* Conteúdo centralizado */}
-      <div style={{
-        position: 'relative', zIndex: 2,
-        minHeight: '100vh', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}>
-        <div style={{ width: '100%', maxWidth: 400 }}>
-
-          {/* Branding */}
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: 18,
-              background: 'rgba(245,158,11,0.12)',
-              border: '1.5px solid rgba(245,158,11,0.35)',
-              boxShadow: '0 0 40px rgba(245,158,11,0.18)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, margin: '0 auto 16px',
-            }}>⛽</div>
-            <h1 style={{
-              fontFamily: 'Space Grotesk', color: '#f59e0b',
-              fontSize: 30, fontWeight: 700, letterSpacing: '-0.5px', margin: 0,
-            }}>
-              TanqueCerto
-            </h1>
-            <p style={{ color: '#475569', fontSize: 14, marginTop: 6 }}>
-              O Waze dos postos de combustível
-            </p>
-          </div>
-
-          {/* Card glassmorphism */}
-          <div style={{
-            background: 'rgba(10, 22, 40, 0.82)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(26, 45, 80, 0.9)',
-            borderRadius: 20,
-            padding: '28px 28px 24px',
-            boxShadow: '0 32px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03)',
-          }}>
-            <h2 style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 18, margin: '0 0 22px' }}>
-              Entrar na conta
-            </h2>
-
-            {error && (
-              <div style={{
-                background: 'rgba(127,29,29,0.25)', border: '1px solid rgba(185,28,28,0.4)',
-                borderRadius: 12, padding: '10px 14px', marginBottom: 16,
-              }}>
-                <span style={{ color: '#f87171', fontSize: 13 }}>⚠️ {error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={labelStyle}>E-mail</label>
-                <input
-                  type="email" required
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="seu@email.com"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Senha</label>
-                <input
-                  type="password" required
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="••••••••"
-                  style={inputStyle}
-                />
-              </div>
-
-              <button
-                type="submit" disabled={loading}
-                style={{
-                  width: '100%', background: '#f59e0b', color: '#060d1f',
-                  fontWeight: 700, fontSize: 15, border: 'none', borderRadius: 12,
-                  padding: '14px', cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.6 : 1,
-                  boxShadow: '0 4px 24px rgba(245,158,11,0.3)',
-                  transition: 'opacity 0.2s', marginTop: 4,
-                }}
-              >
-                {loading ? 'Entrando...' : 'Entrar →'}
-              </button>
-            </form>
-          </div>
-
-          <p style={{ textAlign: 'center', fontSize: 14, color: '#475569', marginTop: 20 }}>
-            Não tem conta?{' '}
-            <Link to="/register" style={{ color: '#f59e0b', fontWeight: 600, textDecoration: 'none' }}>
-              Cadastre-se grátis
-            </Link>
-          </p>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="login-email" className={authLabelClass}>E-mail</label>
+          <input
+            id="login-email"
+            type="email" required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="seu@email.com"
+            className={authInputClass}
+          />
         </div>
-      </div>
-    </div>
+
+        <div>
+          <label htmlFor="login-password" className={authLabelClass}>Senha</label>
+          <input
+            id="login-password"
+            type="password" required
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            placeholder="••••••••"
+            className={authInputClass}
+          />
+        </div>
+
+        <AuthSubmitButton loading={loading} loadingText="Entrando...">
+          Entrar →
+        </AuthSubmitButton>
+      </form>
+    </AuthLayout>
   );
 }

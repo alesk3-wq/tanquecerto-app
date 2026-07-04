@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -11,11 +12,12 @@ import AddReport from './pages/AddReport';
 import AddStation from './pages/AddStation';
 import AddRefuel from './pages/AddRefuel';
 import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className="flex h-screen bg-[#060d1f] overflow-hidden">
+    <div className="flex h-dvh bg-navy-950 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0 sidebar-main">
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
@@ -38,12 +40,18 @@ export default function App() {
 
           {/* Páginas com sidebar */}
           <Route element={<AppLayout />}>
-            <Route path="/"                    element={<Home />} />
-            <Route path="/stations/:id"        element={<StationDetails />} />
-            <Route path="/stations/:id/report"  element={<AddReport />} />
-            <Route path="/stations/:id/refuel"  element={<AddRefuel />} />
-            <Route path="/add-station"         element={<AddStation />} />
-            <Route path="/profile"             element={<Profile />} />
+            <Route path="/"             element={<Home />} />
+            <Route path="/stations/:id" element={<StationDetails />} />
+
+            {/* Rotas que exigem login */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/stations/:id/report" element={<AddReport />} />
+              <Route path="/stations/:id/refuel" element={<AddRefuel />} />
+              <Route path="/add-station"         element={<AddStation />} />
+              <Route path="/profile"             element={<Profile />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </BrowserRouter>

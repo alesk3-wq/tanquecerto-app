@@ -5,15 +5,27 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Só há o que carregar se existe token salvo
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) { setLoading(false); return; }
+    if (!token) return;
     api.get('/auth/me')
       .then(r => setUser(r.data))
-      .catch(() => localStorage.removeItem('token'))
+      .catch((err) => {
+        // Só descarta o token se ele for de fato inválido (401).
+        // Erro de rede/500 transitório não destrói a sessão.
+        if (err.response?.status === 401) localStorage.removeItem('token');
+      })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Disparado pelo interceptor do axios quando qualquer chamada retorna 401
+  useEffect(() => {
+    const onUnauthorized = () => setUser(null);
+    window.addEventListener('tanquecerto:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('tanquecerto:unauthorized', onUnauthorized);
   }, []);
 
   function login(token, userData) {
@@ -33,6 +45,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

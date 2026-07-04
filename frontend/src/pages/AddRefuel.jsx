@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
+import ErrorMessage from '../components/ErrorMessage';
+import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
+import { FUEL_LABELS } from '../constants/fuels';
 
-const FUEL_LABELS = { gasoline: 'Gasolina', ethanol: 'Etanol', diesel: 'Diesel', gnv: 'GNV' };
+const inputClass =
+  'w-full bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-[11px] text-slate-100 text-sm ' +
+  'outline-none focus:border-accent/60 transition-colors placeholder-slate-600';
 
-const inputStyle = {
-  width: '100%', background: '#060d1f', border: '1px solid #1a2d50',
-  borderRadius: 10, padding: '11px 14px', color: '#f1f5f9',
-  fontSize: 14, outline: 'none', boxSizing: 'border-box',
-};
-
-const labelStyle = {
-  display: 'block', color: '#64748b', fontSize: 11,
-  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7,
-};
+const labelClass =
+  'block text-rep-unknown text-[11px] font-semibold uppercase tracking-[0.07em] mb-1.5';
 
 export default function AddRefuel() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -37,9 +32,8 @@ export default function AddRefuel() {
   });
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return; }
     api.get(`/stations/${id}`).then(({ data }) => setStation(data)).catch(() => navigate('/'));
-  }, [id, user, navigate]);
+  }, [id, navigate]);
 
   const pricePerLiter = form.liters && form.total_value
     ? (parseFloat(form.total_value) / parseFloat(form.liters)).toFixed(3)
@@ -76,79 +70,40 @@ export default function AddRefuel() {
   // — Tela de sucesso —
   if (submitted) {
     return (
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 900,
-        background: 'rgba(6,13,31,0.88)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-      }}>
-        <div style={{
-          background: '#0d1a35', border: '1px solid #1a2d50', borderRadius: 20,
-          padding: '32px 28px', maxWidth: 380, width: '100%',
-          boxShadow: '0 32px 64px rgba(0,0,0,0.5)', textAlign: 'center',
-        }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'rgba(245,158,11,0.12)', border: '1.5px solid rgba(245,158,11,0.35)',
-            boxShadow: '0 0 28px rgba(245,158,11,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 26, margin: '0 auto 18px',
-          }}>⛽</div>
+      <SuccessOverlay icon="⛽" title="Abastecimento registrado!">
+        <p className="text-slate-600 text-[13px] mb-5">{submitted.station_name}</p>
 
-          <h2 style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 20, margin: '0 0 6px', fontFamily: 'Space Grotesk' }}>
-            Abastecimento registrado!
-          </h2>
-          <p style={{ color: '#475569', fontSize: 13, margin: '0 0 20px' }}>
-            {submitted.station_name}
-          </p>
-
-          {/* Resumo */}
-          <div style={{
-            background: '#060d1f', border: '1px solid #1a2d50', borderRadius: 14,
-            padding: '14px 16px', marginBottom: 24, textAlign: 'left',
-          }}>
-            {[
-              ['Combustível', FUEL_LABELS[submitted.fuel_type]],
-              ['Litros', `${submitted.liters} L`],
-              ['Total', `R$ ${parseFloat(submitted.total_value).toFixed(2)}`],
-              ['Preço/L', submitted.price_per_liter ? `R$ ${submitted.price_per_liter}` : '—'],
-              submitted.km ? ['KM', submitted.km.toLocaleString('pt-BR')] : null,
-            ].filter(Boolean).map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ color: '#475569', fontSize: 13 }}>{label}</span>
-                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{value}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{
-                background: '#f59e0b', color: '#060d1f', fontWeight: 700, fontSize: 15,
-                border: 'none', borderRadius: 12, padding: '13px',
-                cursor: 'pointer', width: '100%',
-                boxShadow: '0 4px 20px rgba(245,158,11,0.25)',
-              }}
-            >Ver histórico →</button>
-            <button
-              onClick={() => navigate('/')}
-              style={{
-                background: 'transparent', border: '1px solid #1a2d50',
-                color: '#64748b', fontWeight: 500, fontSize: 14,
-                borderRadius: 12, padding: '12px', cursor: 'pointer', width: '100%',
-              }}
-            >Voltar ao mapa</button>
-          </div>
+        {/* Resumo */}
+        <div className="bg-navy-950 border border-navy-600 rounded-[14px] px-4 py-3.5 mb-6 text-left">
+          {[
+            ['Combustível', FUEL_LABELS[submitted.fuel_type]],
+            ['Litros', `${submitted.liters} L`],
+            ['Total', `R$ ${parseFloat(submitted.total_value).toFixed(2)}`],
+            ['Preço/L', submitted.price_per_liter ? `R$ ${submitted.price_per_liter}` : '—'],
+            submitted.km ? ['KM', submitted.km.toLocaleString('pt-BR')] : null,
+          ].filter(Boolean).map(([label, value]) => (
+            <div key={label} className="flex justify-between mb-1.5 last:mb-0">
+              <span className="text-slate-600 text-[13px]">{label}</span>
+              <span className="text-slate-200 text-[13px] font-semibold">{value}</span>
+            </div>
+          ))}
         </div>
-      </div>
+
+        <div className="flex flex-col gap-2.5">
+          <OverlayPrimaryButton onClick={() => navigate('/profile')}>
+            Ver histórico →
+          </OverlayPrimaryButton>
+          <OverlaySecondaryButton onClick={() => navigate('/')}>
+            Voltar ao mapa
+          </OverlaySecondaryButton>
+        </div>
+      </SuccessOverlay>
     );
   }
 
-  const inputClass = { ...inputStyle };
-
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4 pb-8">
-      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-[#f59e0b] transition-colors">
+      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-accent transition-colors">
         ← Voltar
       </button>
 
@@ -160,26 +115,22 @@ export default function AddRefuel() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        {error && (
-          <div className="bg-red-900/30 border border-red-800 text-red-400 text-sm p-3 rounded-xl">
-            {error}
-          </div>
-        )}
+        <ErrorMessage message={error} />
 
-        <div className="bg-[#0d1a35] rounded-2xl border border-[#1a2d50] p-4 space-y-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 p-4 space-y-4">
 
           {/* Data e Combustível */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={labelStyle}>Data</label>
-              <input type="date" required value={form.refueled_at}
+              <label htmlFor="refuel-date" className={labelClass}>Data</label>
+              <input id="refuel-date" type="date" required value={form.refueled_at}
                 onChange={(e) => set('refueled_at', e.target.value)}
-                style={inputClass} />
+                className={inputClass} />
             </div>
             <div>
-              <label style={labelStyle}>Combustível</label>
-              <select value={form.fuel_type} onChange={(e) => set('fuel_type', e.target.value)}
-                style={{ ...inputClass, cursor: 'pointer' }}>
+              <label htmlFor="refuel-fuel" className={labelClass}>Combustível</label>
+              <select id="refuel-fuel" value={form.fuel_type} onChange={(e) => set('fuel_type', e.target.value)}
+                className={`${inputClass} cursor-pointer`}>
                 {Object.entries(FUEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -188,58 +139,54 @@ export default function AddRefuel() {
           {/* Litros e Total */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={labelStyle}>Litros</label>
-              <input type="number" step="0.001" min="0.1" required
+              <label htmlFor="refuel-liters" className={labelClass}>Litros</label>
+              <input id="refuel-liters" type="number" step="0.001" min="0.1" required
                 placeholder="40.500" value={form.liters}
                 onChange={(e) => set('liters', e.target.value)}
-                style={inputClass} />
+                className={inputClass} />
             </div>
             <div>
-              <label style={labelStyle}>Total (R$)</label>
-              <input type="number" step="0.01" min="0.01" required
+              <label htmlFor="refuel-total" className={labelClass}>Total (R$)</label>
+              <input id="refuel-total" type="number" step="0.01" min="0.01" required
                 placeholder="235.00" value={form.total_value}
                 onChange={(e) => set('total_value', e.target.value)}
-                style={inputClass} />
+                className={inputClass} />
             </div>
           </div>
 
           {/* Preço por litro (calculado) */}
           {pricePerLiter && (
-            <div style={{
-              background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)',
-              borderRadius: 10, padding: '10px 14px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span style={{ color: '#64748b', fontSize: 13 }}>Preço por litro</span>
-              <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 15 }}>R$ {pricePerLiter}</span>
+            <div className="bg-accent/[0.07] border border-accent/20 rounded-[10px] px-3.5 py-2.5 flex justify-between items-center">
+              <span className="text-rep-unknown text-[13px]">Preço por litro</span>
+              <span className="text-accent font-bold text-[15px]">R$ {pricePerLiter}</span>
             </div>
           )}
 
           {/* KM */}
           <div>
-            <label style={labelStyle}>
+            <label htmlFor="refuel-km" className={labelClass}>
               KM do veículo{' '}
-              <span style={{ color: '#334155', fontWeight: 400, textTransform: 'none' }}>(opcional)</span>
+              <span className="text-slate-700 font-normal normal-case">(opcional)</span>
             </label>
-            <input type="number" min="0" placeholder="85000"
+            <input id="refuel-km" type="number" min="0" placeholder="85000"
               value={form.km} onChange={(e) => set('km', e.target.value)}
-              style={inputClass} />
+              className={inputClass} />
           </div>
 
           {/* Observação */}
           <div>
-            <label style={labelStyle}>
+            <label htmlFor="refuel-notes" className={labelClass}>
               Observação{' '}
-              <span style={{ color: '#334155', fontWeight: 400, textTransform: 'none' }}>(opcional)</span>
+              <span className="text-slate-700 font-normal normal-case">(opcional)</span>
             </label>
-            <textarea rows={2} maxLength={500} placeholder="Qualquer observação..."
+            <textarea id="refuel-notes" rows={2} maxLength={500} placeholder="Qualquer observação..."
               value={form.notes} onChange={(e) => set('notes', e.target.value)}
-              style={{ ...inputClass, resize: 'none', lineHeight: 1.5 }} />
+              className={`${inputClass} resize-none leading-normal`} />
           </div>
         </div>
 
         <button type="submit" disabled={loading}
-          className="w-full bg-[#f59e0b] text-[#060d1f] font-bold py-3.5 rounded-xl hover:bg-[#d97706] disabled:opacity-50 transition-colors shadow-lg shadow-[#f59e0b]/20"
+          className="w-full bg-accent text-navy-950 font-bold py-3.5 rounded-xl hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-lg shadow-accent/20"
         >
           {loading ? 'Salvando...' : '⛽ Registrar abastecimento'}
         </button>

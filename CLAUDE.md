@@ -95,25 +95,31 @@ Acesse: http://localhost:5173
 
 ## API — endpoints principais
 
+Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
+
 ```
-POST /auth/register          Cadastro
-POST /auth/login             Login → retorna JWT
-GET  /auth/me                Usuário logado
+POST /api/auth/register          Cadastro
+POST /api/auth/login             Login → retorna JWT
+GET  /api/auth/me                Usuário logado
 
-GET  /stations               Lista paginada
-POST /stations               Cadastrar posto (auth)
-GET  /stations/near          Buscar por GPS (?lat=&lng=&radius=)
-GET  /stations/:id           Detalhes
-GET  /stations/:id/stats     Estatísticas de reputação
-GET  /stations/:id/reports   Avaliações paginadas
+GET  /api/stations               Lista paginada
+POST /api/stations               Cadastrar posto (auth)
+GET  /api/stations/near          Buscar por GPS (?lat=&lng=&radius=)
+GET  /api/stations/:id           Detalhes
+GET  /api/stations/:id/stats     Estatísticas de reputação
+GET  /api/stations/:id/reports   Avaliações paginadas
 
-POST /reports                Criar avaliação (auth, 1/dia/posto)
-GET  /reports/mine           Minhas avaliações (auth)
+POST /api/reports                Criar avaliação (auth, 1/dia/posto)
+GET  /api/reports/mine           Minhas avaliações (auth)
+
+GET  /api/health                 Healthcheck
 ```
 
 ## Visual
 
 - Tema dark navy (`#060d1f`) + dourado (`#f59e0b`)
+- Tokens de cor definidos em `frontend/src/index.css` (`@theme`: navy-950/900/800/750/600, accent, rep-*)
+- Cores de reputação em JS: `frontend/src/constants/reputation.js` (manter em sincronia com o @theme)
 - Fontes: Space Grotesk (títulos) + Inter (corpo)
 - Mapa: CartoDB Dark Matter (dark tile gratuito)
 - Marcadores coloridos por reputação no mapa
@@ -125,6 +131,17 @@ GET  /reports/mine           Minhas avaliações (auth)
 - [x] Frontend completo (todas as telas)
 - [x] Visual dark navy + dourado aplicado
 - [x] Fix: posição GPS cacheada no localStorage (postos recarregam ao voltar ao mapa)
+- [x] Refactor de robustez: interceptor 401 + logout automático, ProtectedRoute,
+      erros de rede visíveis (ErrorMessage + retry), GPS negado tratado, rota 404,
+      tokens Tailwind, componentes compartilhados (AuthLayout, SuccessOverlay)
+- [x] Produção: API sob `/api`, Express serve `frontend/dist` (NODE_ENV=production)
+- [x] Guia de deploy Linux + MariaDB + Tailscale HTTPS: ver `DEPLOY.md`
+
+## Deploy
+
+Ver `DEPLOY.md` — servidor Linux nativo (systemd), MariaDB, HTTPS via
+`tailscale serve` (obrigatório para o GPS funcionar no celular).
+O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
 
 ## Próximas features planejadas (roadmap)
 

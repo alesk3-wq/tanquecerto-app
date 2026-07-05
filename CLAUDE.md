@@ -113,6 +113,10 @@ POST /api/reports                Criar avaliação (auth, 1/dia/posto)
 GET  /api/reports/mine           Minhas avaliações (auth)
 
 GET  /api/health                 Healthcheck
+
+POST /api/refuels                 Registrar abastecimento (auth)
+GET  /api/refuels/mine            Meus abastecimentos, paginado (auth)
+GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houver (auth)
 ```
 
 ## Visual
@@ -136,6 +140,33 @@ GET  /api/health                 Healthcheck
       tokens Tailwind, componentes compartilhados (AuthLayout, SuccessOverlay)
 - [x] Produção: API sob `/api`, Express serve `frontend/dist` (NODE_ENV=production)
 - [x] Guia de deploy Linux + MariaDB + Tailscale HTTPS: ver `DEPLOY.md`
+- [x] Prompt "Você está abastecendo?" ao abrir a Home (logado, toda vez): localiza o
+      usuário, acha posto cadastrado por perto (`useRefuelPrompt.js` +
+      `RefuelCheckPrompt.jsx`) e leva direto pro abastecimento; se não achar, oferece
+      cadastrar o posto com endereço preenchido via reverse geocoding Nominatim
+      (`lib/geocode.js`, sem API key).
+- [x] Fluxo invertido: cadastrar posto / concluir abastecimento leva para o
+      abastecimento e só depois para a avaliação (nunca mais direto pra avaliação).
+      Avaliação tem opção "aguardar para testar o combustível" (não envia nada) e
+      vem com o tipo de combustível pré-preenchido quando chega de um abastecimento.
+- [x] Lembrete de avaliação pendente: `GET /api/refuels/pending-review` (sem tabela
+      nova — deriva comparando `refuels` sem `reports` correspondente) alimenta um
+      prompt "Avaliar {posto}" (`usePendingReviewPrompt.js` + `PendingReviewPrompt.jsx`)
+      que aparece depois do prompt de abastecimento, no máximo 1x/dia (localStorage),
+      numa janela de 2 a 9 dias após o abastecimento (depois disso expira sozinho).
+- [x] Removido o campo de texto livre da avaliação (frontend apenas — coluna
+      `reports.description` continua existindo no banco, só não é mais usada).
+- [x] Botão neon (`Button.jsx` variant `neon`, verde `rep-good` com glow) + fundo
+      `--color-void` (preto puro) para os prompts de tela cheia, estilo Uber.
+- [x] Bug corrigido: validação de `notes` em `POST /refuels` rejeitava `null`
+      explicitamente (faltava `{ nullable: true }`), travando qualquer abastecimento
+      sem observação — já estava assim antes desta sessão, não relacionado às
+      mudanças acima.
+
+**Estado em 2026-07-05: tudo commitado (`2889b43`), pushado pro GitHub, buildado e
+no ar em produção (serviço `tanquecerto.service` reiniciado). Testado de ponta a
+ponta contra uma instância isolada em `127.0.0.1` antes do deploy — nenhuma tarefa
+pendente desta rodada.** Próxima conversa pode partir direto para uma nova feature.
 
 ## Deploy
 

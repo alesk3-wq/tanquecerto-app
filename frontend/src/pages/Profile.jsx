@@ -89,7 +89,7 @@ export default function Profile() {
             <p className="text-sm text-slate-400 truncate">{user.email}</p>
           </div>
           <button onClick={handleLogout}
-            className="text-sm text-slate-500 hover:text-red-400 border border-navy-600 hover:border-red-800/50 px-3 py-1.5 rounded-lg transition-all flex-shrink-0">
+            className="text-sm text-slate-500 hover:text-rep-bad border border-navy-600 hover:border-rep-bad/50 px-3 py-1.5 rounded-lg transition-all flex-shrink-0">
             Sair
           </button>
         </div>
@@ -97,7 +97,7 @@ export default function Profile() {
         {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-3 mt-6">
           <StatCard value={reports.length}   label="Avaliações"  color="text-accent" />
-          <StatCard value={positives}        label="Positivas"   color="text-green-400" />
+          <StatCard value={positives}        label="Positivas"   color="text-rep-good" />
           <StatCard value={favorites.length} label="Favoritos"   color="text-slate-300" extra="⭐" />
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function Profile() {
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <StatCard value={refuelStats.total} label="Total" color="text-accent" />
                   <StatCard value={`${parseFloat(refuelStats.total_liters).toFixed(0)}L`} label="Litros" color="text-slate-300" />
-                  <StatCard value={`R$${parseFloat(refuelStats.total_spent).toFixed(0)}`} label="Gasto" color="text-green-400" />
+                  <StatCard value={`R$${parseFloat(refuelStats.total_spent).toFixed(0)}`} label="Gasto" color="text-rep-good" />
                 </div>
               )}
               {refuels.length === 0 ? (
@@ -250,7 +250,7 @@ export default function Profile() {
                             onClick={(e) => removeFavorite(s.id, e)}
                             title="Remover dos favoritos"
                             aria-label={`Remover ${s.name} dos favoritos`}
-                            className="text-slate-600 hover:text-red-400 text-lg transition-colors leading-none"
+                            className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
                           >✕</button>
                         </div>
                       </div>
@@ -282,7 +282,7 @@ function EmptyState({ icon, text, onExplore }) {
 
 function StatCard({ value, label, color, extra }) {
   return (
-    <div className="bg-navy-950/50 rounded-xl p-3 text-center border border-navy-600/50">
+    <div className="bg-navy-950/50 rounded-xl p-3 text-center border border-navy-600/50 shadow-md shadow-black/20">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-xs text-slate-500 mt-0.5">{extra ? `${extra} ` : ''}{label}</p>
     </div>

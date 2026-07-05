@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -15,15 +15,15 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
 function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex h-dvh bg-navy-950 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar />
       <div className="flex flex-col flex-1 min-w-0 sidebar-main">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
+        <BottomNav />
       </div>
     </div>
   );

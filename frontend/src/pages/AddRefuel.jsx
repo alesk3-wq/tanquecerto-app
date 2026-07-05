@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
+import Button from '../components/Button';
 import { FUEL_LABELS } from '../constants/fuels';
 
 const inputClass =
@@ -89,7 +90,7 @@ export default function AddRefuel() {
           ))}
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           <OverlayPrimaryButton onClick={() => navigate('/profile')}>
             Ver histórico →
           </OverlayPrimaryButton>
@@ -103,10 +104,6 @@ export default function AddRefuel() {
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4 pb-8">
-      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-accent transition-colors">
-        ← Voltar
-      </button>
-
       {station && (
         <div>
           <h1 className="text-xl font-bold text-slate-100">Registrar abastecimento</h1>
@@ -117,7 +114,7 @@ export default function AddRefuel() {
       <form onSubmit={handleSubmit} className="space-y-3">
         <ErrorMessage message={error} />
 
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 p-4 space-y-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4 space-y-4">
 
           {/* Data e Combustível */}
           <div className="grid grid-cols-2 gap-3">
@@ -185,11 +182,9 @@ export default function AddRefuel() {
           </div>
         </div>
 
-        <button type="submit" disabled={loading}
-          className="w-full bg-accent text-navy-950 font-bold py-3.5 rounded-xl hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-lg shadow-accent/20"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? 'Salvando...' : '⛽ Registrar abastecimento'}
-        </button>
+        </Button>
       </form>
     </div>
   );

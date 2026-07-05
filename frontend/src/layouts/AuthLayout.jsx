@@ -1,6 +1,7 @@
 import { MapContainer } from 'react-leaflet';
 import '../lib/leafletSetup';
-import DarkTileLayer from '../components/map/DarkTileLayer';
+import MapTileLayer from '../components/map/MapTileLayer';
+import Button from '../components/Button';
 
 // São Paulo — cenário do mapa decorativo das telas de auth
 const AUTH_MAP_CENTER = [-23.55, -46.63];
@@ -30,7 +31,7 @@ export default function AuthLayout({ subtitle, cardTitle, children, footer }) {
           boxZoom={false}
           attributionControl={false}
         >
-          <DarkTileLayer attribution={false} />
+          <MapTileLayer attribution={false} />
         </MapContainer>
       </div>
 
@@ -86,14 +87,8 @@ export default function AuthLayout({ subtitle, cardTitle, children, footer }) {
 
 export function AuthSubmitButton({ loading, loadingText, children }) {
   return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="w-full bg-accent text-navy-950 font-bold text-[15px] rounded-xl py-3.5 mt-1
-                 disabled:opacity-60 disabled:cursor-not-allowed hover:bg-accent-dark
-                 transition-colors shadow-lg shadow-accent/30"
-    >
+    <Button type="submit" disabled={loading} className="mt-1">
       {loading ? loadingText : children}
-    </button>
+    </Button>
   );
 }

@@ -1,3 +1,5 @@
+import Button from './Button';
+
 // Overlay fullscreen de sucesso — usado após cadastrar posto,
 // enviar avaliação e registrar abastecimento.
 export default function SuccessOverlay({ icon = '✅', iconTone = 'accent', title, children }) {
@@ -30,24 +32,16 @@ export default function SuccessOverlay({ icon = '✅', iconTone = 'accent', titl
 // Botões padrão do overlay
 export function OverlayPrimaryButton({ onClick, children }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full bg-accent text-navy-950 font-bold text-[15px] rounded-xl py-3.5 hover:bg-accent-dark transition-colors shadow-lg shadow-accent/25"
-    >
+    <Button type="button" onClick={onClick}>
       {children}
-    </button>
+    </Button>
   );
 }
 
 export function OverlaySecondaryButton({ onClick, children }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full bg-transparent border border-navy-600 text-slate-500 font-medium text-sm rounded-xl py-3 hover:text-slate-300 hover:border-navy-500 transition-colors"
-    >
+    <Button type="button" variant="ghost" onClick={onClick}>
       {children}
-    </button>
+    </Button>
   );
 }

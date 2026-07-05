@@ -6,7 +6,7 @@ import api from '../api/api';
 import StationCard from '../components/StationCard';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
-import DarkTileLayer from '../components/map/DarkTileLayer';
+import MapTileLayer from '../components/map/MapTileLayer';
 import { DEFAULT_CENTER } from '../constants/map';
 import { repColor } from '../constants/reputation';
 
@@ -17,9 +17,9 @@ function openRoute(userPos, station) {
 
 function createMarkerIcon(reputation) {
   const color = repColor(reputation);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
-    <path d="M12 0C5.4 0 0 5.4 0 12c0 8 12 24 12 24s12-16 12-24C24 5.4 18.6 0 12 0z" fill="${color}" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
-    <circle cx="12" cy="12" r="5" fill="rgba(255,255,255,0.9)"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36" style="filter: drop-shadow(0 3px 5px rgba(6,13,31,0.35))">
+    <path d="M12 0C5.4 0 0 5.4 0 12c0 8 12 24 12 24s12-16 12-24C24 5.4 18.6 0 12 0z" fill="${color}" stroke="rgba(6,13,31,0.25)" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="5" fill="rgba(255,255,255,0.95)"/>
   </svg>`;
   return L.divIcon({
     html: svg,
@@ -116,7 +116,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 60px)' }}>
+    <div className="flex flex-col h-full">
       {/* Map */}
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
         <MapContainer
@@ -124,7 +124,7 @@ export default function Home() {
           zoom={userPos ? 13 : 5}
           style={{ height: '100%', width: '100%' }}
         >
-          <DarkTileLayer />
+          <MapTileLayer />
           <LocateUser key={gpsRetry} onLocation={handleLocation} onError={handleLocationError} />
 
           {/* Marcador do usuário */}
@@ -132,7 +132,7 @@ export default function Home() {
             <CircleMarker
               center={[userPos.lat, userPos.lng]}
               radius={8}
-              pathOptions={{ fillColor: '#f59e0b', fillOpacity: 1, color: '#fff', weight: 2 }}
+              pathOptions={{ fillColor: '#f59e0b', fillOpacity: 1, color: '#060d1f', weight: 2 }}
             />
           )}
 
@@ -161,18 +161,18 @@ export default function Home() {
                       <span className="text-slate-600 text-xs">📍 {s.distance} km</span>
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {userPos && (
                         <button
                           onClick={() => openRoute(userPos, s)}
-                          className="w-full bg-rep-good text-navy-950 font-bold text-[13px] rounded-[10px] px-3 py-2.5 shadow-lg shadow-rep-good/20 cursor-pointer"
+                          className="w-full min-h-[40px] bg-rep-good text-navy-950 font-bold text-[13px] rounded-xl px-3 py-2.5 shadow-lg shadow-rep-good/20 cursor-pointer active:scale-[0.97] transition-transform"
                         >
                           ⛽ Abastecer
                         </button>
                       )}
                       <button
                         onClick={() => navigate(`/stations/${s.id}`)}
-                        className="w-full bg-white/[0.04] border border-navy-600 text-slate-400 font-medium text-[13px] rounded-[10px] px-3 py-2 cursor-pointer"
+                        className="w-full min-h-[40px] bg-white/[0.04] border border-navy-600 text-slate-400 font-medium text-[13px] rounded-xl px-3 py-2 cursor-pointer active:scale-[0.97] transition-transform"
                       >
                         Ver detalhes →
                       </button>
@@ -185,11 +185,14 @@ export default function Home() {
         </MapContainer>
       </div>
 
-      {/* Bottom panel */}
-      <div className="bg-navy-900 border-t border-navy-600" style={{ maxHeight: '45dvh', overflowY: 'auto' }}>
+      {/* Bottom panel — bottom sheet flutuante, estilo app de navegação */}
+      <div
+        className="bg-navy-900 rounded-t-3xl -mt-4 relative z-10 shadow-[0_-12px_32px_rgba(0,0,0,0.35)]"
+        style={{ maxHeight: '45dvh', overflowY: 'auto' }}
+      >
         {/* Handle */}
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="w-10 h-1 rounded-full bg-navy-600" />
+        <div className="flex justify-center pt-2.5 pb-1.5 sticky top-0 bg-navy-900 rounded-t-3xl">
+          <div className="w-10 h-1.5 rounded-full bg-navy-600" />
         </div>
 
         <div className="px-4 pb-4">
@@ -210,11 +213,11 @@ export default function Home() {
               </p>
             </div>
             {userPos && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => refresh(userPos.lat, userPos.lng, radius)}
                   aria-label="Atualizar lista de postos"
-                  className="text-xs text-accent border border-accent/30 px-2.5 py-1.5 rounded-lg hover:bg-accent/10 transition-colors"
+                  className="w-11 h-11 flex items-center justify-center text-accent border border-accent/30 rounded-xl hover:bg-accent/10 transition-colors flex-shrink-0"
                 >
                   ↻
                 </button>
@@ -222,7 +225,7 @@ export default function Home() {
                   value={radius}
                   onChange={(e) => handleRadiusChange(Number(e.target.value))}
                   aria-label="Raio de busca"
-                  className="text-sm bg-navy-800 border border-navy-600 text-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:border-accent/40"
+                  className="text-sm bg-navy-800 border border-navy-600 text-slate-300 rounded-xl px-3 min-h-[44px] focus:outline-none focus:border-accent/40"
                 >
                   <option value={2}>2 km</option>
                   <option value={5}>5 km</option>
@@ -247,7 +250,7 @@ export default function Home() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {!loading && stations.map((s) => <StationCard key={s.id} station={s} />)}
             {!loading && !stations.length && !error && userPos && (
               <div className="text-center py-8 bg-navy-800/50 rounded-xl border border-dashed border-navy-600">

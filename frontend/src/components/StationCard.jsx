@@ -10,7 +10,7 @@ export default function StationCard({ station }) {
     <button
       type="button"
       onClick={() => navigate(`/stations/${station.id}`)}
-      className="relative block w-full text-left bg-navy-800 rounded-xl cursor-pointer hover:bg-navy-750 active:scale-[0.98] transition-all overflow-hidden"
+      className="relative block w-full text-left bg-navy-800 rounded-xl shadow-md shadow-black/20 cursor-pointer hover:bg-navy-750 hover:shadow-lg active:scale-[0.98] transition-all overflow-hidden"
       style={{ borderLeft: `4px solid ${accent}` }}
     >
       <div className="p-4">

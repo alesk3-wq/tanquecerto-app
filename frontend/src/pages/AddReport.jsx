@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
+import Button from '../components/Button';
 import { FUEL_ORDER, FUEL_LABELS } from '../constants/fuels';
 import { repColor } from '../constants/reputation';
 
 const TYPES = [
-  { value: 'good',    label: '✅ Positivo',  desc: 'Combustível de qualidade, bom atendimento',  border: 'border-green-600/40',  bg: 'bg-green-900/20'  },
-  { value: 'suspect', label: '⚠️ Suspeito',  desc: 'Algo me deixou desconfiado',                 border: 'border-orange-600/40', bg: 'bg-orange-900/20' },
-  { value: 'bad',     label: '❌ Negativo',   desc: 'Problema claro: adulteração, falha, etc.',   border: 'border-red-600/40',    bg: 'bg-red-900/20'    },
+  { value: 'good',    label: '✅ Positivo',  desc: 'Combustível de qualidade, bom atendimento',  border: 'border-rep-good/40',    bg: 'bg-rep-good/10'    },
+  { value: 'suspect', label: '⚠️ Suspeito',  desc: 'Algo me deixou desconfiado',                 border: 'border-rep-suspect/40', bg: 'bg-rep-suspect/10' },
+  { value: 'bad',     label: '❌ Negativo',   desc: 'Problema claro: adulteração, falha, etc.',   border: 'border-rep-bad/40',     bg: 'bg-rep-bad/10'     },
 ];
 
 const TYPE_RESULT = {
@@ -60,7 +61,7 @@ export default function AddReport() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           <OverlayPrimaryButton onClick={() => navigate('/')}>
             Ir para o mapa
           </OverlayPrimaryButton>
@@ -74,15 +75,12 @@ export default function AddReport() {
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
-      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-accent transition-colors">
-        ← Voltar
-      </button>
       <h1 className="text-xl font-bold text-slate-100">Avaliar posto</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <ErrorMessage message={error} />
 
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 p-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
           <p className="font-medium text-slate-300 mb-3">Sua experiência foi...</p>
           <div className="space-y-2">
             {TYPES.map((t) => (
@@ -107,7 +105,7 @@ export default function AddReport() {
           </div>
         </div>
 
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 p-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
           <p className="font-medium text-slate-300 mb-3">Tipo de combustível</p>
           <div className="grid grid-cols-2 gap-2">
             {FUEL_ORDER.map((f) => (
@@ -128,7 +126,7 @@ export default function AddReport() {
           </div>
         </div>
 
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 p-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
           <label htmlFor="report-description" className="block font-medium text-slate-300 mb-2">
             Descrição <span className="text-slate-500 font-normal text-sm">(opcional)</span>
           </label>
@@ -143,11 +141,9 @@ export default function AddReport() {
           <p className="text-xs text-slate-600 text-right mt-1">{form.description.length}/500</p>
         </div>
 
-        <button type="submit" disabled={loading}
-          className="w-full bg-accent text-navy-950 font-bold py-3 rounded-xl hover:bg-accent-dark disabled:opacity-50 transition-colors"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? 'Enviando...' : 'Enviar avaliação'}
-        </button>
+        </Button>
       </form>
     </div>
   );

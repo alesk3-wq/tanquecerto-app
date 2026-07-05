@@ -3,18 +3,19 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
+import Button from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 
 const TYPE_CONFIG  = {
-  good:    { label: 'Positivo',  icon: '✅', color: 'text-green-400',  bg: 'bg-green-900/20',  border: 'border-green-800/40' },
-  suspect: { label: 'Suspeito', icon: '⚠️', color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-800/40' },
-  bad:     { label: 'Negativo', icon: '❌', color: 'text-red-400',    bg: 'bg-red-900/20',    border: 'border-red-800/40'    },
+  good:    { label: 'Positivo',  icon: '✅', color: 'text-rep-good',    bg: 'bg-rep-good/10',    border: 'border-rep-good/30'    },
+  suspect: { label: 'Suspeito', icon: '⚠️', color: 'text-rep-suspect', bg: 'bg-rep-suspect/10', border: 'border-rep-suspect/30' },
+  bad:     { label: 'Negativo', icon: '❌', color: 'text-rep-bad',     bg: 'bg-rep-bad/10',     border: 'border-rep-bad/30'     },
 };
 const HERO_GRADIENT = {
-  good:    'from-green-900/40 to-navy-900',
-  suspect: 'from-yellow-900/40 to-navy-900',
-  bad:     'from-red-900/40 to-navy-900',
+  good:    'from-rep-good/20 to-navy-900',
+  suspect: 'from-rep-suspect/20 to-navy-900',
+  bad:     'from-rep-bad/20 to-navy-900',
   unknown: 'from-slate-800/40 to-navy-900',
 };
 
@@ -147,11 +148,6 @@ export default function StationDetails() {
     <div className="max-w-2xl mx-auto">
       {/* Hero header */}
       <div className={`bg-gradient-to-b ${HERO_GRADIENT[rep]} px-4 pt-4 pb-6`}>
-        <button onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-accent transition-colors mb-4">
-          ← Voltar
-        </button>
-
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold text-slate-100 leading-tight">{station.name}</h1>
@@ -167,7 +163,7 @@ export default function StationDetails() {
               aria-pressed={favorited}
               aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
               title={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-              className={`rounded-[10px] px-2.5 py-1.5 text-lg leading-none border transition-all
+              className={`w-11 h-11 flex items-center justify-center rounded-xl text-lg leading-none border transition-all
                 ${favorited ? 'bg-accent/15 border-accent/40' : 'bg-white/5 border-navy-600'}
                 ${favLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
             >
@@ -175,23 +171,23 @@ export default function StationDetails() {
             </button>
           </div>
         </div>
-        {favError && <p className="text-xs text-red-400 text-right mt-2">{favError}</p>}
+        {favError && <p className="text-xs text-rep-bad text-right mt-2">{favError}</p>}
       </div>
 
       <div className="px-4 space-y-4 pb-8">
         {/* Stats card */}
         {stats && (
-          <div className="bg-navy-800 rounded-2xl border border-navy-600 overflow-hidden -mt-2">
+          <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden -mt-2">
             <div className="grid grid-cols-4 divide-x divide-navy-600">
               <StatBox label="Total"     value={stats.total}   color="text-slate-100" />
-              <StatBox label="Positivos" value={stats.good}    color="text-green-400" />
-              <StatBox label="Suspeitos" value={stats.suspect} color="text-yellow-400" />
-              <StatBox label="Negativos" value={stats.bad}     color="text-red-400" />
+              <StatBox label="Positivos" value={stats.good}    color="text-rep-good" />
+              <StatBox label="Suspeitos" value={stats.suspect} color="text-rep-suspect" />
+              <StatBox label="Negativos" value={stats.bad}     color="text-rep-bad" />
             </div>
             {stats.score !== 0 && (
               <div className="px-4 py-3 border-t border-navy-600 flex items-center justify-between">
                 <span className="text-sm text-slate-500">Pontuação da comunidade</span>
-                <span className={`text-sm font-bold ${stats.score > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`text-sm font-bold ${stats.score > 0 ? 'text-rep-good' : 'text-rep-bad'}`}>
                   {stats.score > 0 ? '+' : ''}{stats.score} pts
                 </span>
               </div>
@@ -200,13 +196,13 @@ export default function StationDetails() {
         )}
 
         {/* Preços */}
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 overflow-hidden">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">
           <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-navy-600">
             <h2 className="font-semibold text-slate-200">💲 Preços informados</h2>
             {user && (
               <button
                 onClick={() => setShowPriceForm((v) => !v)}
-                className={`text-xs font-semibold text-accent border border-accent/30 rounded-lg px-2.5 py-1 transition-colors
+                className={`text-xs font-semibold text-accent border border-accent/30 rounded-lg px-3 py-2 min-h-[38px] transition-colors
                   ${showPriceForm ? 'bg-accent/10' : 'bg-transparent hover:bg-accent/5'}`}
               >
                 {showPriceForm ? 'Cancelar' : '+ Informar'}
@@ -216,7 +212,7 @@ export default function StationDetails() {
 
           {/* Form de preço */}
           {showPriceForm && (
-            <form onSubmit={handlePriceSubmit} className="px-4 py-3 border-b border-navy-600 flex flex-wrap gap-2 items-end">
+            <form onSubmit={handlePriceSubmit} className="px-4 py-3 border-b border-navy-600 flex flex-wrap gap-3 items-end">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Combustível</label>
                 <select
@@ -237,13 +233,10 @@ export default function StationDetails() {
                   className="w-28 bg-navy-950 border border-navy-600 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-accent/50"
                 />
               </div>
-              <button
-                type="submit" disabled={priceLoading}
-                className="bg-accent text-navy-950 font-bold text-[13px] rounded-lg px-4 py-2 disabled:opacity-60"
-              >
+              <Button type="submit" size="md" disabled={priceLoading} className="px-4">
                 {priceLoading ? '...' : 'Salvar'}
-              </button>
-              {priceError && <p className="w-full text-xs text-red-400 mt-1">{priceError}</p>}
+              </Button>
+              {priceError && <p className="w-full text-xs text-rep-bad mt-1">{priceError}</p>}
             </form>
           )}
 
@@ -284,18 +277,12 @@ export default function StationDetails() {
         {/* CTAs */}
         {user ? (
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate(`/stations/${id}/report`)}
-              className="bg-accent text-navy-950 font-bold py-3 rounded-xl hover:bg-accent-dark transition-colors shadow-lg shadow-accent/20 flex items-center justify-center gap-1.5 text-sm"
-            >
+            <Button size="md" onClick={() => navigate(`/stations/${id}/report`)}>
               ✍️ Avaliar
-            </button>
-            <button
-              onClick={() => navigate(`/stations/${id}/refuel`)}
-              className="bg-navy-800 border border-navy-600 text-slate-200 font-bold py-3 rounded-xl hover:border-accent/40 hover:bg-navy-750 transition-all flex items-center justify-center gap-1.5 text-sm"
-            >
+            </Button>
+            <Button size="md" variant="secondary" onClick={() => navigate(`/stations/${id}/refuel`)}>
               ⛽ Abastecer
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="bg-navy-800 rounded-xl border border-navy-600 p-4 text-center">
@@ -382,14 +369,14 @@ function ReportCard({ report: r, tc, user }) {
           {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
         </p>
         <div className="flex items-center gap-2">
-          {voteError && <span className="text-[11px] text-red-400">Falhou, tente de novo</span>}
+          {voteError && <span className="text-[11px] text-rep-bad">Falhou, tente de novo</span>}
           <button
             onClick={handleVote}
             disabled={busy}
             aria-pressed={voted}
             aria-label="Marcar relato como útil"
             title="Esse relato me ajudou"
-            className={`flex items-center gap-1.5 rounded-lg pl-2 pr-2.5 py-[3px] text-xs font-semibold border transition-all
+            className={`flex items-center gap-1.5 min-h-[36px] rounded-lg pl-2.5 pr-3 py-1.5 text-xs font-semibold border transition-all
               ${voted ? 'bg-accent/15 border-accent/35 text-accent' : 'bg-white/5 border-white/10 text-rep-unknown'}
               ${busy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
           >

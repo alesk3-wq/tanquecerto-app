@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
@@ -22,7 +22,9 @@ const TYPE_RESULT = {
 export default function AddReport() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ type: '', fuel_type: 'gasoline', description: '' });
+  const location = useLocation();
+  const prefill = location.state?.prefill;
+  const [form, setForm] = useState({ type: '', fuel_type: prefill?.fuel_type ?? 'gasoline' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(null);
@@ -76,6 +78,11 @@ export default function AddReport() {
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
       <h1 className="text-xl font-bold text-slate-100">Avaliar posto</h1>
+      {prefill && (
+        <p className="text-xs text-slate-500 -mt-2">
+          Combustível preenchido automaticamente do seu abastecimento.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <ErrorMessage message={error} />
@@ -126,23 +133,11 @@ export default function AddReport() {
           </div>
         </div>
 
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
-          <label htmlFor="report-description" className="block font-medium text-slate-300 mb-2">
-            Descrição <span className="text-slate-500 font-normal text-sm">(opcional)</span>
-          </label>
-          <textarea
-            id="report-description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={3} maxLength={500}
-            className="w-full bg-navy-950 border border-navy-600 text-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-accent transition-colors placeholder-slate-600"
-            placeholder="Conte sua experiência..."
-          />
-          <p className="text-xs text-slate-600 text-right mt-1">{form.description.length}/500</p>
-        </div>
-
         <Button type="submit" disabled={loading}>
           {loading ? 'Enviando...' : 'Enviar avaliação'}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => navigate('/')}>
+          Prefiro aguardar para testar o combustível
         </Button>
       </form>
     </div>

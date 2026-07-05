@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MapContainer, Marker, useMapEvents } from 'react-leaflet';
 import '../lib/leafletSetup';
 import api from '../api/api';
@@ -9,6 +9,7 @@ import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '..
 import MapTileLayer from '../components/map/MapTileLayer';
 import Button from '../components/Button';
 import { DEFAULT_CENTER } from '../constants/map';
+import { reverseGeocode } from '../lib/geocode';
 
 function ClickMarker({ position, onSelect }) {
   useMapEvents({ click: (e) => onSelect(e.latlng) });
@@ -39,13 +40,16 @@ function NearbyStationRow({ station, onReview }) {
 
 export default function AddStation() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialPosition = location.state?.initialPosition;
   const [form, setForm] = useState({ name: '', brand: '', address: '' });
   const [position, setPosition] = useState(null);
   const [error, setError] = useState('');
   const [gpsWarning, setGpsWarning] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Centro inicial: posição cacheada, senão o padrão (GPS tenta melhorar depois)
+  // Centro inicial: posição vinda de navegação, senão cacheada, senão o padrão (GPS tenta melhorar depois)
   const [center, setCenter] = useState(() => {
+    if (initialPosition) return [initialPosition.lat, initialPosition.lng];
     const cached = localStorage.getItem('tanquecerto_pos');
     if (!cached) return DEFAULT_CENTER;
     const pos = JSON.parse(cached);
@@ -58,14 +62,25 @@ export default function AddStation() {
   const [checkingNearby, setCheckingNearby] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // Reverse geocoding do endereço
+  const [geocoding, setGeocoding] = useState(false);
+  const [addressTouched, setAddressTouched] = useState(false);
+
   useEffect(() => {
+    if (initialPosition) return;
     if (localStorage.getItem('tanquecerto_pos')) return;
     navigator.geolocation?.getCurrentPosition(
       (p) => setCenter([p.coords.latitude, p.coords.longitude]),
       () => setGpsWarning(true),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Posição já veio pronta (ex: fluxo "Você está abastecendo?") — marca no mapa sem precisar de clique manual
+  useEffect(() => {
+    if (!initialPosition) return;
+    handlePositionSelect(initialPosition);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkNearby = useCallback(async (lat, lng) => {
     setCheckingNearby(true);
@@ -85,6 +100,14 @@ export default function AddStation() {
   function handlePositionSelect(latlng) {
     setPosition(latlng);
     checkNearby(latlng.lat, latlng.lng);
+    if (!addressTouched) fillAddress(latlng.lat, latlng.lng);
+  }
+
+  async function fillAddress(lat, lng) {
+    setGeocoding(true);
+    const address = await reverseGeocode(lat, lng);
+    if (address && !addressTouched) setForm((f) => ({ ...f, address }));
+    setGeocoding(false);
   }
 
   async function doSubmit() {
@@ -125,11 +148,11 @@ export default function AddStation() {
           <span className="text-slate-400 font-medium">{createdStation.name}</span> foi adicionado ao mapa.
         </p>
         <p className="text-slate-600 text-sm mb-7">
-          Deseja fazer a primeira avaliação deste posto?
+          Você está abastecendo agora?
         </p>
         <div className="flex flex-col gap-3">
-          <OverlayPrimaryButton onClick={() => navigate(`/stations/${createdStation.id}/report`)}>
-            Sim, avaliar agora →
+          <OverlayPrimaryButton onClick={() => navigate(`/stations/${createdStation.id}/refuel`)}>
+            Sim, abastecer agora →
           </OverlayPrimaryButton>
           <OverlaySecondaryButton onClick={() => navigate('/')}>
             Não, voltar ao mapa
@@ -188,8 +211,14 @@ export default function AddStation() {
           <div>
             <label htmlFor="station-address" className="block text-sm font-medium text-slate-300 mb-1.5">Endereço</label>
             <input id="station-address" value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              onChange={(e) => { setAddressTouched(true); setForm({ ...form, address: e.target.value }); }}
               className={inputClass} placeholder="Ex: Av. Paulista, 1000 - São Paulo" />
+            {geocoding && (
+              <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 border border-slate-500 border-t-transparent rounded-full animate-spin" />
+                Buscando endereço...
+              </p>
+            )}
           </div>
         </div>
 

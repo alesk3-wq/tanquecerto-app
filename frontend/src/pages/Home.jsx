@@ -7,6 +7,11 @@ import StationCard from '../components/StationCard';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import MapTileLayer from '../components/map/MapTileLayer';
+import RefuelCheckPrompt from '../components/RefuelCheckPrompt';
+import PendingReviewPrompt from '../components/PendingReviewPrompt';
+import useRefuelPrompt from '../hooks/useRefuelPrompt';
+import usePendingReviewPrompt from '../hooks/usePendingReviewPrompt';
+import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_CENTER } from '../constants/map';
 import { repColor } from '../constants/reputation';
 
@@ -70,6 +75,18 @@ export default function Home() {
   const [gpsRetry, setGpsRetry] = useState(0);
   const [radius, setRadius] = useState(5);
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  function retryLocate() {
+    setGpsError(false);
+    setGpsRetry((n) => n + 1);
+  }
+
+  const refuelPrompt = useRefuelPrompt({ user, userPos, gpsError, retryLocate });
+  const pendingReviewPrompt = usePendingReviewPrompt({
+    user,
+    enabled: refuelPrompt.askedOnce && refuelPrompt.step === 'closed',
+  });
 
   // setState só após o await — o "loading" é ligado por quem chama (evento) ou pelo estado inicial
   const loadNear = useCallback(async (lat, lng, r) => {
@@ -117,6 +134,12 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-full">
+      {pendingReviewPrompt.step === 'ask' ? (
+        <PendingReviewPrompt {...pendingReviewPrompt} />
+      ) : (
+        <RefuelCheckPrompt {...refuelPrompt} />
+      )}
+
       {/* Map */}
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
         <MapContainer
@@ -274,7 +297,7 @@ export default function Home() {
                       Verifique se o acesso à localização está permitido para este site nas configurações do navegador.
                     </p>
                     <button
-                      onClick={() => { setGpsError(false); setGpsRetry((n) => n + 1); }}
+                      onClick={retryLocate}
                       className="mt-3 text-sm text-accent hover:underline font-medium"
                     >
                       Tentar novamente

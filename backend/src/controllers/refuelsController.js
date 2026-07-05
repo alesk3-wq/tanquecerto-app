@@ -59,4 +59,27 @@ async function myRefuels(req, res, next) {
   }
 }
 
-module.exports = { create, myRefuels };
+async function pendingReview(req, res, next) {
+  try {
+    const [[pending]] = await db.query(
+      `SELECT r.id, r.station_id, s.name AS station_name, r.fuel_type, r.refueled_at
+       FROM refuels r
+       JOIN stations s ON s.id = r.station_id
+       WHERE r.user_id = ?
+         AND DATEDIFF(CURDATE(), r.refueled_at) BETWEEN 2 AND 9
+         AND NOT EXISTS (
+           SELECT 1 FROM reports rep
+           WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
+             AND rep.created_at >= r.refueled_at
+         )
+       ORDER BY r.refueled_at ASC
+       LIMIT 1`,
+      [req.user.id]
+    );
+    res.json(pending ?? null);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, myRefuels, pendingReview };

@@ -91,11 +91,15 @@ export default function AddRefuel() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <OverlayPrimaryButton onClick={() => navigate('/profile')}>
-            Ver histórico →
+          <OverlayPrimaryButton
+            onClick={() => navigate(`/stations/${id}/report`, {
+              state: { prefill: { fuel_type: submitted.fuel_type, refueled_at: submitted.refueled_at } },
+            })}
+          >
+            Avaliar agora →
           </OverlayPrimaryButton>
           <OverlaySecondaryButton onClick={() => navigate('/')}>
-            Voltar ao mapa
+            Aguardar para testar o combustível
           </OverlaySecondaryButton>
         </div>
       </SuccessOverlay>

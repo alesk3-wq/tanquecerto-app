@@ -15,6 +15,7 @@
   --color-rep-suspect: #facc15;
   --color-rep-bad: #ef4444;
   --color-rep-unknown: #64748b;
+  --color-void: #000000; /* fundo full-bleed do prompt de abastecimento */
 }
 
 * {

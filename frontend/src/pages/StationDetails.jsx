@@ -361,9 +361,6 @@ function ReportCard({ report: r, tc, user }) {
           {FUEL_LABELS[r.fuel_type] ?? r.fuel_type}
         </span>
       </div>
-      {r.description && (
-        <p className="text-sm text-slate-300 leading-relaxed">{r.description}</p>
-      )}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/10">
         <p className="text-xs text-slate-600">
           {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}

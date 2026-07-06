@@ -169,6 +169,18 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       sem observação — já estava assim antes desta sessão, não relacionado às
       mudanças acima.
 
+- [x] PWA instalável: `frontend/public/manifest.json` + ícones (192/512,
+      `⛽` sobre navy-950) + service worker mínimo sem cache
+      (`frontend/public/sw.js`, registrado em `main.jsx`). Nova tela
+      `/instalar` (`Install.jsx`, usa `AuthLayout`) detecta Android
+      (botão nativo via `beforeinstallprompt`, fallback manual em 4s se
+      não disparar), iOS (passo a passo Safari, sem prompt nativo),
+      já-instalado (`display-mode: standalone`) e desktop. Link no rodapé
+      do Login.
+      **Bug conhecido, não corrigido ainda:** em viewports estreitos (ex:
+      Pixel 7), o subtítulo do `AuthLayout` se sobrepõe ao topo do card —
+      acontece em Login/Register/Install por igual (bug do `AuthLayout`,
+      não de uma tela específica). Fica pra rodada de polimento visual.
 - [x] Cadastro de veículos (marca/modelo/ano, texto livre) — tabela `vehicles`,
       CRUD em `/api/vehicles`, aba "Meus Carros" em `Profile.jsx`. Abastecimento
       (`AddRefuel.jsx`) ganha seletor de veículo opcional + cadastro rápido inline
@@ -183,11 +195,20 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       na seção "Consumo médio por veículo", **lado a lado** com a avaliação por
       texto (Positivo/Suspeito/Negativo) — não substitui, é aditivo.
 
-**Estado em 2026-07-05: tudo commitado (até `c919679`), pushado pro GitHub, buildado
-e no ar em produção (serviço `tanquecerto.service` reiniciado, migração de banco
-já aplicada em `tanquecerto`). Testado de ponta a ponta contra uma instância isolada
-em `127.0.0.1` antes/depois do deploy — nenhuma tarefa pendente.** Próxima conversa
-pode partir direto para uma nova feature.
+**Estado em 2026-07-05: tudo commitado (até `8f350aa`), pushado pro GitHub e buildado
+em produção. Nenhuma tarefa pendente desta rodada.** Próximo passo combinado com o
+usuário: melhorar visualmente as telas de cadastro/formulário (hoje parecem
+"formulário padrão" — pequenas, encostadas no canto; ideia dele é algo mais
+flutuante/espaçoso). Ele vai apontando ajustes visuais aos poucos, junto com as
+próximas features — não é pra fazer uma repaginada grande de uma vez, é incremental.
+Ver o bug de overlap do `AuthLayout` anotado acima como primeiro candidato dessa
+rodada de polimento.
+
+**Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
+direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
+só tomar cuidado pra não deixar frontend e backend fora de sincronia (rodar
+`npm run build` já publica o dist ao vivo, então terminar as duas pontas antes de
+buildar).
 
 ## Deploy
 

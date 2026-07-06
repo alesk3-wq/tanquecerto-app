@@ -202,13 +202,28 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       `@layer base`. **Ao adicionar CSS solto em `index.css` no futuro, sempre
       colocar dentro de `@layer base` (ou `components`) — nunca fora —, senão
       ele volta a atropelar qualquer utility do Tailwind.**
+- [x] Fix: linha de veículo em "Meus Carros" estourava a tela (misturava
+      `cardClass` com `block` embutido + `flex` no mesmo elemento — os dois
+      brigando pelo `display`). Agora usa um card dedicado sem esse conflito,
+      e a barra de abas do Perfil rola horizontalmente sozinha
+      (`overflow-x-auto` + `flex-shrink-0`) em vez de arrastar a página
+      inteira quando não cabem as 4 abas numa tela estreita.
+- [x] Preço médio calculado dos abastecimentos: `GET /api/stations/:id/prices`
+      mescla o preço manual (`fuel_prices`, "última informação vence" — quem
+      informa por último sobrescreve, sem histórico) com uma média de
+      `total_value/liters` dos abastecimentos reais dos **últimos 15 dias**
+      (janela pra não pegar preço desatualizado). Mostrado lado a lado em
+      `StationDetails.jsx`: preço manual em destaque + "méd. abastec." embaixo
+      quando os dois existem; se só houver média calculada (sem preço manual
+      informado ainda), ela vira o valor principal com o nº de abastecimentos.
+      Aditivo — não tira o "+ Informar" manual, só soma um sinal mais difícil
+      de forjar (exige abastecimento de verdade registrado no app).
 
-**Estado em 2026-07-06: tudo commitado (até `f8306b0`), pushado pro GitHub e buildado
-em produção. Nenhuma tarefa pendente desta rodada.** Próximo passo combinado com o
-usuário: continuar melhorando visualmente as telas de cadastro/formulário aos poucos
-(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada grande de
-uma vez). O bug de overlap do card em viewports estreitos (Login/Register/Install)
-**já foi resolvido** junto com o fix de CSS acima.
+**Estado em 2026-07-06: tudo commitado (até `a82bcd2`), pushado pro GitHub e buildado
+em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
+passo combinado com o usuário: continuar melhorando visualmente as telas de
+cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra
+fazer uma repaginada grande de uma vez).
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —

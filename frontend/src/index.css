@@ -18,21 +18,26 @@
   --color-void: #000000; /* fundo full-bleed do prompt de abastecimento */
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Precisa estar em @layer base — CSS fora de layer sempre vence sobre as
+   utilities do Tailwind (que vivem em @layer utilities), então um reset "solto"
+   aqui zerava margin/padding de mb-*, p-*, space-y-* etc no app inteiro. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #060d1f;
-  color: #f1f5f9;
-  min-height: 100vh;
-}
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #060d1f;
+    color: #f1f5f9;
+    min-height: 100vh;
+  }
 
-h1, h2, h3, h4 {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  h1, h2, h3, h4 {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
 }
 
 /* Layout sidebar */

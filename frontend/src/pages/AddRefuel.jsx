@@ -43,7 +43,11 @@ export default function AddRefuel() {
   }, [id, navigate]);
 
   useEffect(() => {
-    api.get('/vehicles/mine').then(({ data }) => setVehicles(data)).catch(() => {});
+    api.get('/vehicles/mine').then(({ data }) => {
+      setVehicles(data);
+      // Pré-seleciona o carro cadastrado mais recentemente (primeiro da lista)
+      if (data.length > 0) set('vehicle_id', String(data[0].id));
+    }).catch(() => {});
   }, []);
 
   async function addVehicle() {
@@ -172,6 +176,12 @@ export default function AddRefuel() {
               <p className="text-xs text-slate-600 mt-1.5">
                 Informe o KM abaixo pra acompanharmos o consumo deste carro.
               </p>
+            )}
+            {vehicles.length > 0 && (
+              <button type="button" onClick={() => navigate('/profile', { state: { tab: 'vehicles' } })}
+                className="text-xs text-accent hover:underline mt-1.5">
+                Gerenciar veículos →
+              </button>
             )}
           </div>
 

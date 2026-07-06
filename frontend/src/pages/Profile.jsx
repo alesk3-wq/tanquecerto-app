@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import ReputationBadge from '../components/ReputationBadge';
@@ -15,7 +15,8 @@ const cardClass =
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('reports');
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.tab ?? 'reports');
   const [reports, setReports]     = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -27,6 +28,7 @@ export default function Profile() {
 
   const [vehicles, setVehicles]   = useState([]);
   const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '' });
+  const [editingVehicleId, setEditingVehicleId] = useState(null);
   const [vehicleError, setVehicleError] = useState('');
   const [savingVehicle, setSavingVehicle] = useState(false);
 
@@ -52,7 +54,19 @@ export default function Profile() {
     }
   }, []);
 
-  async function addVehicle(e) {
+  function startEditVehicle(v) {
+    setEditingVehicleId(v.id);
+    setVehicleForm({ brand: v.brand, model: v.model, year: String(v.year) });
+    setVehicleError('');
+  }
+
+  function cancelEditVehicle() {
+    setEditingVehicleId(null);
+    setVehicleForm({ brand: '', model: '', year: '' });
+    setVehicleError('');
+  }
+
+  async function saveVehicle(e) {
     e.preventDefault();
     setVehicleError('');
     if (!vehicleForm.brand.trim() || !vehicleForm.model.trim() || !vehicleForm.year) {
@@ -61,15 +75,22 @@ export default function Profile() {
     }
     setSavingVehicle(true);
     try {
-      const { data } = await api.post('/vehicles', {
+      const payload = {
         brand: vehicleForm.brand.trim(),
         model: vehicleForm.model.trim(),
         year: parseInt(vehicleForm.year),
-      });
-      setVehicles((prev) => [data, ...prev]);
+      };
+      if (editingVehicleId) {
+        const { data } = await api.put(`/vehicles/${editingVehicleId}`, payload);
+        setVehicles((prev) => prev.map((v) => (v.id === editingVehicleId ? data : v)));
+        setEditingVehicleId(null);
+      } else {
+        const { data } = await api.post('/vehicles', payload);
+        setVehicles((prev) => [data, ...prev]);
+      }
       setVehicleForm({ brand: '', model: '', year: '' });
     } catch (err) {
-      setVehicleError(err.response?.data?.error ?? 'Erro ao adicionar veículo.');
+      setVehicleError(err.response?.data?.error ?? 'Erro ao salvar veículo.');
     } finally {
       setSavingVehicle(false);
     }
@@ -80,6 +101,7 @@ export default function Profile() {
     try {
       await api.delete(`/vehicles/${id}`);
       setVehicles((prev) => prev.filter((v) => v.id !== id));
+      if (editingVehicleId === id) cancelEditVehicle();
     } catch {
       setVehicleError('Não foi possível remover o veículo.');
     }
@@ -307,8 +329,10 @@ export default function Profile() {
             <>
               {vehicleError && <ErrorMessage message={vehicleError} className="mb-3" />}
 
-              <form onSubmit={addVehicle} className="bg-navy-800 rounded-xl border border-navy-600 p-4 mb-4 space-y-3">
-                <p className="font-medium text-slate-300 text-sm">Adicionar carro</p>
+              <form onSubmit={saveVehicle} className="bg-navy-800 rounded-xl border border-navy-600 p-4 mb-4 space-y-3">
+                <p className="font-medium text-slate-300 text-sm">
+                  {editingVehicleId ? 'Editar carro' : 'Adicionar carro'}
+                </p>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={vehicleForm.brand}
@@ -330,10 +354,18 @@ export default function Profile() {
                     className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
                   />
                 </div>
-                <button type="submit" disabled={savingVehicle}
-                  className="w-full bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
-                  {savingVehicle ? 'Salvando...' : 'Adicionar carro'}
-                </button>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={savingVehicle}
+                    className="flex-1 bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
+                    {savingVehicle ? 'Salvando...' : editingVehicleId ? 'Salvar alterações' : 'Adicionar carro'}
+                  </button>
+                  {editingVehicleId && (
+                    <button type="button" onClick={cancelEditVehicle}
+                      className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </form>
 
               {vehicles.length === 0 ? (
@@ -345,12 +377,20 @@ export default function Profile() {
                       <p className="font-semibold text-sm text-slate-200">
                         {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
                       </p>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}
-                        title="Remover carro"
-                        aria-label={`Remover ${v.brand} ${v.model}`}
-                        className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none flex-shrink-0"
-                      >✕</button>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEditVehicle(v); }}
+                          title="Editar carro"
+                          aria-label={`Editar ${v.brand} ${v.model}`}
+                          className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
+                        >✎</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}
+                          title="Remover carro"
+                          aria-label={`Remover ${v.brand} ${v.model}`}
+                          className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
+                        >✕</button>
+                      </div>
                     </div>
                   ))}
                 </div>

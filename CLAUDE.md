@@ -114,9 +114,15 @@ GET  /api/reports/mine           Minhas avaliações (auth)
 
 GET  /api/health                 Healthcheck
 
-POST /api/refuels                 Registrar abastecimento (auth)
+POST /api/refuels                 Registrar abastecimento (auth, vehicle_id opcional)
 GET  /api/refuels/mine            Meus abastecimentos, paginado (auth)
 GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houver (auth)
+
+POST   /api/vehicles              Cadastrar veículo: brand/model/year (auth)
+GET    /api/vehicles/mine         Meus veículos (auth)
+DELETE /api/vehicles/:id          Remover veículo (auth, só o dono)
+
+GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste posto
 ```
 
 ## Visual
@@ -163,10 +169,25 @@ GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houv
       sem observação — já estava assim antes desta sessão, não relacionado às
       mudanças acima.
 
-**Estado em 2026-07-05: tudo commitado (`2889b43`), pushado pro GitHub, buildado e
-no ar em produção (serviço `tanquecerto.service` reiniciado). Testado de ponta a
-ponta contra uma instância isolada em `127.0.0.1` antes do deploy — nenhuma tarefa
-pendente desta rodada.** Próxima conversa pode partir direto para uma nova feature.
+- [x] Cadastro de veículos (marca/modelo/ano, texto livre) — tabela `vehicles`,
+      CRUD em `/api/vehicles`, aba "Meus Carros" em `Profile.jsx`. Abastecimento
+      (`AddRefuel.jsx`) ganha seletor de veículo opcional + cadastro rápido inline
+      se o usuário não tiver nenhum carro ainda.
+- [x] Consumo médio por posto (km/l): quando um veículo é selecionado no
+      abastecimento, o KM do odômetro vira **obrigatório** (antes era opcional).
+      `GET /api/stations/:id/vehicle-stats` calcula a distância entre dois
+      abastecimentos consecutivos do mesmo veículo (janela `LEAD()`, MySQL 8+) e
+      atribui o km/l ao posto/combustível do abastecimento mais antigo do par.
+      Só mostra a média com **mínimo de 3 medições** por marca/modelo/ano/combustível
+      (mesmo critério do `MIN_REPORTS` da reputação). Exibido em `StationDetails.jsx`
+      na seção "Consumo médio por veículo", **lado a lado** com a avaliação por
+      texto (Positivo/Suspeito/Negativo) — não substitui, é aditivo.
+
+**Estado em 2026-07-05: tudo commitado (até `c919679`), pushado pro GitHub, buildado
+e no ar em produção (serviço `tanquecerto.service` reiniciado, migração de banco
+já aplicada em `tanquecerto`). Testado de ponta a ponta contra uma instância isolada
+em `127.0.0.1` antes/depois do deploy — nenhuma tarefa pendente.** Próxima conversa
+pode partir direto para uma nova feature.
 
 ## Deploy
 

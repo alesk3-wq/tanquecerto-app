@@ -38,6 +38,10 @@ export default function Login() {
           <Link to="/register" className="text-accent font-semibold hover:underline">
             Cadastre-se grátis
           </Link>
+          <br />
+          <Link to="/instalar" className="text-slate-600 hover:text-accent text-xs mt-2 inline-block">
+            📲 Instalar o app no celular
+          </Link>
         </>
       }
     >

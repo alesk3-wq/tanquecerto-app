@@ -12,6 +12,13 @@ router.post(
     body('liters').isFloat({ min: 0.1 }),
     body('total_value').isFloat({ min: 0.01 }),
     body('refueled_at').isDate(),
+    body('vehicle_id').optional({ nullable: true }).isInt({ min: 1 }),
+    body('km').custom((value, { req }) => {
+      if (req.body.vehicle_id && (value === undefined || value === null || value === '')) {
+        throw new Error('KM é obrigatório quando um veículo é selecionado.');
+      }
+      return true;
+    }),
     body('km').optional({ nullable: true }).isInt({ min: 0 }),
     body('notes').optional({ nullable: true }).isString().isLength({ max: 500 }),
   ],

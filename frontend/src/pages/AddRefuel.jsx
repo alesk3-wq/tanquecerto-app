@@ -24,6 +24,7 @@ export default function AddRefuel() {
   const [submitted, setSubmitted] = useState(null);
   const [error, setError]       = useState('');
   const [form, setForm]         = useState({
+    vehicle_id:  '',
     fuel_type:   'gasoline',
     liters:      '',
     total_value: '',
@@ -32,9 +33,41 @@ export default function AddRefuel() {
     refueled_at: today,
   });
 
+  const [vehicles, setVehicles] = useState([]);
+  const [newVehicle, setNewVehicle] = useState({ brand: '', model: '', year: '' });
+  const [vehicleError, setVehicleError] = useState('');
+  const [savingVehicle, setSavingVehicle] = useState(false);
+
   useEffect(() => {
     api.get(`/stations/${id}`).then(({ data }) => setStation(data)).catch(() => navigate('/'));
   }, [id, navigate]);
+
+  useEffect(() => {
+    api.get('/vehicles/mine').then(({ data }) => setVehicles(data)).catch(() => {});
+  }, []);
+
+  async function addVehicle() {
+    setVehicleError('');
+    if (!newVehicle.brand.trim() || !newVehicle.model.trim() || !newVehicle.year) {
+      setVehicleError('Preencha marca, modelo e ano.');
+      return;
+    }
+    setSavingVehicle(true);
+    try {
+      const { data } = await api.post('/vehicles', {
+        brand: newVehicle.brand.trim(),
+        model: newVehicle.model.trim(),
+        year: parseInt(newVehicle.year),
+      });
+      setVehicles((prev) => [data, ...prev]);
+      set('vehicle_id', String(data.id));
+      setNewVehicle({ brand: '', model: '', year: '' });
+    } catch (err) {
+      setVehicleError(err.response?.data?.error ?? 'Erro ao adicionar veículo.');
+    } finally {
+      setSavingVehicle(false);
+    }
+  }
 
   const pricePerLiter = form.liters && form.total_value
     ? (parseFloat(form.total_value) / parseFloat(form.liters)).toFixed(3)
@@ -47,11 +80,13 @@ export default function AddRefuel() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.liters || !form.total_value) { setError('Informe litros e valor total.'); return; }
+    if (form.vehicle_id && !form.km) { setError('Informe o KM do veículo (necessário para calcular o consumo).'); return; }
     setError('');
     setLoading(true);
     try {
       const payload = {
         station_id:  parseInt(id),
+        vehicle_id:  form.vehicle_id ? parseInt(form.vehicle_id) : null,
         fuel_type:   form.fuel_type,
         liters:      parseFloat(form.liters),
         total_value: parseFloat(form.total_value),
@@ -120,6 +155,53 @@ export default function AddRefuel() {
 
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4 space-y-4">
 
+          {/* Veículo */}
+          <div>
+            <label htmlFor="refuel-vehicle" className={labelClass}>
+              Veículo{' '}
+              <span className="text-slate-700 font-normal normal-case">(opcional)</span>
+            </label>
+            <select id="refuel-vehicle" value={form.vehicle_id} onChange={(e) => set('vehicle_id', e.target.value)}
+              className={`${inputClass} cursor-pointer`}>
+              <option value="">Não informar</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.year})</option>
+              ))}
+            </select>
+            {form.vehicle_id && (
+              <p className="text-xs text-slate-600 mt-1.5">
+                Informe o KM abaixo pra acompanharmos o consumo deste carro.
+              </p>
+            )}
+          </div>
+
+          {vehicles.length === 0 && (
+            <div className="bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-3 space-y-2">
+              <p className="text-xs text-slate-500">
+                Cadastre seu carro pra acompanhar o consumo médio nos postos que visitar.
+              </p>
+              <ErrorMessage message={vehicleError} />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={newVehicle.brand}
+                  onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })}
+                  placeholder="Marca" className={`${inputClass} col-span-2`} />
+                <input
+                  value={newVehicle.model}
+                  onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })}
+                  placeholder="Modelo" className={inputClass} />
+                <input
+                  value={newVehicle.year} type="number"
+                  onChange={(e) => setNewVehicle({ ...newVehicle, year: e.target.value })}
+                  placeholder="Ano" className={inputClass} />
+              </div>
+              <button type="button" onClick={addVehicle} disabled={savingVehicle}
+                className="w-full bg-navy-800 border border-navy-600 text-slate-200 font-semibold text-sm rounded-lg px-3 py-2 disabled:opacity-50">
+                {savingVehicle ? 'Salvando...' : 'Salvar carro'}
+              </button>
+            </div>
+          )}
+
           {/* Data e Combustível */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -167,9 +249,13 @@ export default function AddRefuel() {
           <div>
             <label htmlFor="refuel-km" className={labelClass}>
               KM do veículo{' '}
-              <span className="text-slate-700 font-normal normal-case">(opcional)</span>
+              {form.vehicle_id ? (
+                <span className="text-rep-suspect font-normal normal-case">(obrigatório)</span>
+              ) : (
+                <span className="text-slate-700 font-normal normal-case">(opcional)</span>
+              )}
             </label>
-            <input id="refuel-km" type="number" min="0" placeholder="85000"
+            <input id="refuel-km" type="number" min="0" placeholder="85000" required={!!form.vehicle_id}
               value={form.km} onChange={(e) => set('km', e.target.value)}
               className={inputClass} />
           </div>

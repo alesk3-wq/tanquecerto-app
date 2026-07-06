@@ -44,9 +44,20 @@ CREATE TABLE IF NOT EXISTS favorites (
   FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS vehicles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  brand VARCHAR(60) NOT NULL,
+  model VARCHAR(60) NOT NULL,
+  year SMALLINT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS refuels (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
+  vehicle_id INT NULL,
   station_id INT NOT NULL,
   fuel_type ENUM('gasoline', 'ethanol', 'diesel', 'gnv') NOT NULL,
   liters DECIMAL(8,3) NOT NULL,
@@ -56,6 +67,7 @@ CREATE TABLE IF NOT EXISTS refuels (
   refueled_at DATE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
   FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
 );
 
@@ -85,3 +97,5 @@ CREATE TABLE IF NOT EXISTS fuel_prices (
 CREATE INDEX idx_stations_location ON stations(latitude, longitude);
 -- Índice para limitar 1 relato por usuário por dia
 CREATE INDEX idx_reports_user_station_date ON reports(user_id, station_id, created_at);
+-- Índice para achar o abastecimento anterior/seguinte do mesmo veículo (cálculo de consumo)
+CREATE INDEX idx_refuels_vehicle_date ON refuels(vehicle_id, refueled_at, created_at);

@@ -25,18 +25,25 @@ export default function Profile() {
   const [refuels, setRefuels]   = useState([]);
   const [refuelStats, setRefuelStats] = useState({ total: 0, total_liters: 0, total_spent: 0 });
 
+  const [vehicles, setVehicles]   = useState([]);
+  const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '' });
+  const [vehicleError, setVehicleError] = useState('');
+  const [savingVehicle, setSavingVehicle] = useState(false);
+
   // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadAll = useCallback(async () => {
     try {
-      const [r, f, rf] = await Promise.all([
+      const [r, f, rf, v] = await Promise.all([
         api.get('/reports/mine'),
         api.get('/favorites'),
         api.get('/refuels/mine'),
+        api.get('/vehicles/mine'),
       ]);
       setReports(r.data.data);
       setFavorites(f.data);
       setRefuels(rf.data.data);
       setRefuelStats({ total: rf.data.total, total_liters: rf.data.total_liters, total_spent: rf.data.total_spent });
+      setVehicles(v.data);
       setError('');
     } catch {
       setError('Não foi possível carregar seus dados.');
@@ -44,6 +51,39 @@ export default function Profile() {
       setLoading(false);
     }
   }, []);
+
+  async function addVehicle(e) {
+    e.preventDefault();
+    setVehicleError('');
+    if (!vehicleForm.brand.trim() || !vehicleForm.model.trim() || !vehicleForm.year) {
+      setVehicleError('Preencha marca, modelo e ano.');
+      return;
+    }
+    setSavingVehicle(true);
+    try {
+      const { data } = await api.post('/vehicles', {
+        brand: vehicleForm.brand.trim(),
+        model: vehicleForm.model.trim(),
+        year: parseInt(vehicleForm.year),
+      });
+      setVehicles((prev) => [data, ...prev]);
+      setVehicleForm({ brand: '', model: '', year: '' });
+    } catch (err) {
+      setVehicleError(err.response?.data?.error ?? 'Erro ao adicionar veículo.');
+    } finally {
+      setSavingVehicle(false);
+    }
+  }
+
+  async function removeVehicle(id) {
+    setVehicleError('');
+    try {
+      await api.delete(`/vehicles/${id}`);
+      setVehicles((prev) => prev.filter((v) => v.id !== id));
+    } catch {
+      setVehicleError('Não foi possível remover o veículo.');
+    }
+  }
 
   // Fetch-on-mount: os setState acontecem após o await, não sincronamente.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -108,6 +148,7 @@ export default function Profile() {
           { key: 'reports',   label: 'Avaliações',      count: reports.length },
           { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: '⭐' },
           { key: 'refuels',   label: 'Abastecimentos',   count: refuelStats.total, icon: '⛽' },
+          { key: 'vehicles',  label: 'Meus Carros',      count: vehicles.length,   icon: '🚗' },
         ].map((t) => (
           <button
             key={t.key}
@@ -254,6 +295,62 @@ export default function Profile() {
                           >✕</button>
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* — TAB MEUS CARROS — */}
+          {tab === 'vehicles' && (
+            <>
+              {vehicleError && <ErrorMessage message={vehicleError} className="mb-3" />}
+
+              <form onSubmit={addVehicle} className="bg-navy-800 rounded-xl border border-navy-600 p-4 mb-4 space-y-3">
+                <p className="font-medium text-slate-300 text-sm">Adicionar carro</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={vehicleForm.brand}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, brand: e.target.value })}
+                    placeholder="Marca (ex: Honda)"
+                    className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                  />
+                  <input
+                    value={vehicleForm.model}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })}
+                    placeholder="Modelo (ex: City)"
+                    className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                  />
+                  <input
+                    value={vehicleForm.year}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, year: e.target.value })}
+                    placeholder="Ano (ex: 2015)"
+                    type="number"
+                    className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                  />
+                </div>
+                <button type="submit" disabled={savingVehicle}
+                  className="w-full bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
+                  {savingVehicle ? 'Salvando...' : 'Adicionar carro'}
+                </button>
+              </form>
+
+              {vehicles.length === 0 ? (
+                <EmptyState icon="🚗" text="Você ainda não cadastrou nenhum carro." onExplore={() => navigate('/')} />
+              ) : (
+                <div className="space-y-3">
+                  {vehicles.map((v) => (
+                    <div key={v.id} className={cardClass + ' flex items-center justify-between gap-2'}>
+                      <p className="font-semibold text-sm text-slate-200">
+                        {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
+                      </p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}
+                        title="Remover carro"
+                        aria-label={`Remover ${v.brand} ${v.model}`}
+                        className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none flex-shrink-0"
+                      >✕</button>
                     </div>
                   ))}
                 </div>

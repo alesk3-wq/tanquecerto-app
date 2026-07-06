@@ -146,4 +146,38 @@ async function getReports(req, res, next) {
   }
 }
 
-module.exports = { create, list, findNear, getById, getStats, getReports };
+async function getVehicleStats(req, res, next) {
+  try {
+    const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
+    if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    const [rows] = await db.query(
+      `WITH ordered AS (
+         SELECT r.station_id, r.fuel_type, r.vehicle_id, r.km, r.liters,
+                LEAD(r.km) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_km,
+                LEAD(r.liters) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_liters
+         FROM refuels r
+         WHERE r.vehicle_id IS NOT NULL AND r.km IS NOT NULL
+       ),
+       measurements AS (
+         SELECT station_id, fuel_type, vehicle_id, (next_km - km) / next_liters AS consumption
+         FROM ordered
+         WHERE next_km IS NOT NULL AND next_liters IS NOT NULL AND next_km > km
+       )
+       SELECT v.brand, v.model, v.year, m.fuel_type,
+              ROUND(AVG(m.consumption), 1) AS avg_consumption, COUNT(*) AS samples
+       FROM measurements m
+       JOIN vehicles v ON v.id = m.vehicle_id
+       WHERE m.station_id = ? AND m.consumption BETWEEN 1 AND 40
+       GROUP BY v.brand, v.model, v.year, m.fuel_type
+       HAVING COUNT(*) >= 3
+       ORDER BY v.brand, v.model, v.year`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats };

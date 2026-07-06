@@ -21,6 +21,7 @@ router.get('/near', c.findNear);
 router.get('/:id', c.getById);
 router.get('/:id/stats', c.getStats);
 router.get('/:id/reports', optionalAuth, c.getReports);
+router.get('/:id/vehicle-stats', c.getVehicleStats);
 
 router.get('/:id/prices', prices.getPrices);
 router.post(

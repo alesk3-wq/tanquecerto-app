@@ -19,6 +19,7 @@ apiRouter.use('/stations',  require('./src/routes/stations'));
 apiRouter.use('/reports',   require('./src/routes/reports'));
 apiRouter.use('/favorites', require('./src/routes/favorites'));
 apiRouter.use('/refuels',   require('./src/routes/refuels'));
+apiRouter.use('/vehicles',  require('./src/routes/vehicles'));
 apiRouter.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api', apiRouter);

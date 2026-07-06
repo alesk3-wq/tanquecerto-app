@@ -38,6 +38,7 @@ export default function StationDetails() {
   const [stats, setStats]       = useState(null);
   const [reports, setReports]   = useState([]);
   const [prices, setPrices]     = useState([]);
+  const [vehicleStats, setVehicleStats] = useState([]);
   const [favorited, setFavorited] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favError, setFavError] = useState('');
@@ -58,14 +59,16 @@ export default function StationDetails() {
   // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadStation = useCallback(async () => {
     try {
-      const [s, st, r] = await Promise.all([
+      const [s, st, r, vs] = await Promise.all([
         api.get(`/stations/${id}`),
         api.get(`/stations/${id}/stats`),
         api.get(`/stations/${id}/reports`),
+        api.get(`/stations/${id}/vehicle-stats`),
       ]);
       setStation(s.data);
       setStats(st.data);
       setReports(r.data.data);
+      setVehicleStats(vs.data);
       setPageError('');
     } catch (err) {
       // Posto inexistente → volta ao mapa; outros erros → mensagem com retry
@@ -194,6 +197,34 @@ export default function StationDetails() {
             )}
           </div>
         )}
+
+        {/* Consumo médio por veículo */}
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">
+          <div className="px-4 pt-4 pb-3 border-b border-navy-600">
+            <h2 className="font-semibold text-slate-200">🚗 Consumo médio por veículo</h2>
+          </div>
+          {vehicleStats.length === 0 ? (
+            <div className="px-4 py-5 text-center">
+              <p className="text-slate-500 text-sm">Ainda não há dados de consumo suficientes para este posto.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-navy-600">
+              {vehicleStats.map((v, i) => (
+                <div key={i} className="px-4 py-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-200 truncate">
+                      {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {FUEL_LABELS[v.fuel_type] ?? v.fuel_type} · {v.samples} abastecimento{v.samples > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <p className="text-base font-bold text-accent whitespace-nowrap">{v.avg_consumption} km/l</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Preços */}
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">

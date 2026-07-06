@@ -6,15 +6,23 @@ async function create(req, res, next) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { station_id, fuel_type, liters, total_value, km, notes, refueled_at } = req.body;
+    const { station_id, vehicle_id, fuel_type, liters, total_value, km, notes, refueled_at } = req.body;
 
     const [[station]] = await db.query('SELECT id, name FROM stations WHERE id = ?', [station_id]);
     if (!station) return res.status(404).json({ error: 'Posto não encontrado.' });
 
+    if (vehicle_id) {
+      const [[vehicle]] = await db.query(
+        'SELECT id FROM vehicles WHERE id = ? AND user_id = ?',
+        [vehicle_id, req.user.id]
+      );
+      if (!vehicle) return res.status(400).json({ error: 'Veículo inválido.' });
+    }
+
     const [result] = await db.query(
-      `INSERT INTO refuels (user_id, station_id, fuel_type, liters, total_value, km, notes, refueled_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, station_id, fuel_type, liters, total_value, km || null, notes || null, refueled_at]
+      `INSERT INTO refuels (user_id, vehicle_id, station_id, fuel_type, liters, total_value, km, notes, refueled_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user.id, vehicle_id || null, station_id, fuel_type, liters, total_value, km || null, notes || null, refueled_at]
     );
 
     res.status(201).json({ id: result.insertId, station_name: station.name, fuel_type, liters, total_value, refueled_at });

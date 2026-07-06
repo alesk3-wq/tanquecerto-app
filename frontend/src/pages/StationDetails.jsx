@@ -288,15 +288,28 @@ export default function StationDetails() {
                 return (
                   <div key={fuel} className="px-4 py-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">{FUEL_LABELS[fuel]}</p>
-                    {p ? (
+                    {p?.price ? (
                       <>
                         <p className="text-base font-bold text-accent">
                           R$ {parseFloat(p.price).toFixed(3)}
                         </p>
                         <p className="text-[10px] text-slate-600 mt-0.5">{timeAgo(p.updated_at)}</p>
                       </>
+                    ) : p?.avg_price ? (
+                      <>
+                        <p className="text-base font-bold text-rep-unknown">
+                          R$ {parseFloat(p.avg_price).toFixed(3)}
+                        </p>
+                        <p className="text-[10px] text-slate-600 mt-0.5">média · {p.avg_samples} abast.</p>
+                      </>
                     ) : (
                       <p className="text-sm text-slate-600">—</p>
+                    )}
+                    {p?.avg_price && p?.price && (
+                      <p className="text-[10px] text-slate-600 mt-1.5 pt-1.5 border-t border-navy-600/60">
+                        méd. abastec. R$ {parseFloat(p.avg_price).toFixed(3)}
+                        <br />({p.avg_samples})
+                      </p>
                     )}
                   </div>
                 );

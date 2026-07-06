@@ -3,14 +3,36 @@ const { validationResult } = require('express-validator');
 
 const FUEL_LABELS = { gasoline: 'Gasolina', ethanol: 'Etanol', diesel: 'Diesel', gnv: 'GNV' };
 
+const FUEL_ORDER = ['gasoline', 'ethanol', 'diesel', 'gnv'];
+
 async function getPrices(req, res, next) {
   try {
-    const [rows] = await db.query(
-      `SELECT fuel_type, price, updated_at
-       FROM fuel_prices
-       WHERE station_id = ?
-       ORDER BY FIELD(fuel_type, 'gasoline', 'ethanol', 'diesel', 'gnv')`,
+    const [manual] = await db.query(
+      'SELECT fuel_type, price, updated_at FROM fuel_prices WHERE station_id = ?',
       [req.params.id]
+    );
+    const [computed] = await db.query(
+      `SELECT fuel_type, ROUND(AVG(total_value / liters), 3) AS avg_price, COUNT(*) AS avg_samples
+       FROM refuels
+       WHERE station_id = ? AND refueled_at >= DATE_SUB(CURDATE(), INTERVAL 15 DAY)
+       GROUP BY fuel_type`,
+      [req.params.id]
+    );
+
+    const byFuel = {};
+    for (const row of manual) {
+      byFuel[row.fuel_type] = { fuel_type: row.fuel_type, price: row.price, updated_at: row.updated_at };
+    }
+    for (const row of computed) {
+      byFuel[row.fuel_type] = {
+        ...(byFuel[row.fuel_type] ?? { fuel_type: row.fuel_type, price: null, updated_at: null }),
+        avg_price: row.avg_price,
+        avg_samples: row.avg_samples,
+      };
+    }
+
+    const rows = Object.values(byFuel).sort(
+      (a, b) => FUEL_ORDER.indexOf(a.fuel_type) - FUEL_ORDER.indexOf(b.fuel_type)
     );
     res.json(rows);
   } catch (err) {

@@ -165,7 +165,7 @@ export default function Profile() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-navy-600 px-4 mt-2">
+      <div className="flex overflow-x-auto border-b border-navy-600 px-4 mt-2">
         {[
           { key: 'reports',   label: 'Avaliações',      count: reports.length },
           { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: '⭐' },
@@ -175,7 +175,7 @@ export default function Profile() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap flex-shrink-0 transition-colors ${
               tab === t.key
                 ? 'border-accent text-accent'
                 : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -373,19 +373,19 @@ export default function Profile() {
               ) : (
                 <div className="space-y-3">
                   {vehicles.map((v) => (
-                    <div key={v.id} className={cardClass + ' flex items-center justify-between gap-2'}>
-                      <p className="font-semibold text-sm text-slate-200">
+                    <div key={v.id} className="bg-navy-800 rounded-xl border border-navy-600 p-4 flex items-center justify-between gap-2">
+                      <p className="font-semibold text-sm text-slate-200 truncate min-w-0">
                         {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
                       </p>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <button
-                          onClick={(e) => { e.stopPropagation(); startEditVehicle(v); }}
+                          onClick={() => startEditVehicle(v)}
                           title="Editar carro"
                           aria-label={`Editar ${v.brand} ${v.model}`}
                           className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
                         >✎</button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}
+                          onClick={() => removeVehicle(v.id)}
                           title="Remover carro"
                           aria-label={`Remover ${v.brand} ${v.model}`}
                           className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"

@@ -177,14 +177,13 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       não disparar), iOS (passo a passo Safari, sem prompt nativo),
       já-instalado (`display-mode: standalone`) e desktop. Link no rodapé
       do Login.
-      **Bug conhecido, não corrigido ainda:** em viewports estreitos (ex:
-      Pixel 7), o subtítulo do `AuthLayout` se sobrepõe ao topo do card —
-      acontece em Login/Register/Install por igual (bug do `AuthLayout`,
-      não de uma tela específica). Fica pra rodada de polimento visual.
 - [x] Cadastro de veículos (marca/modelo/ano, texto livre) — tabela `vehicles`,
-      CRUD em `/api/vehicles`, aba "Meus Carros" em `Profile.jsx`. Abastecimento
-      (`AddRefuel.jsx`) ganha seletor de veículo opcional + cadastro rápido inline
-      se o usuário não tiver nenhum carro ainda.
+      CRUD completo (`POST`/`GET mine`/`PUT :id`/`DELETE :id` em `/api/vehicles`),
+      aba "Meus Carros" em `Profile.jsx` (adicionar/editar ✎/remover ✕).
+      Abastecimento (`AddRefuel.jsx`) pré-seleciona o carro cadastrado mais
+      recentemente (dropdown pra trocar se tiver mais de um), com cadastro
+      rápido inline se o usuário não tiver nenhum ainda, e link "Gerenciar
+      veículos" direto pra aba certa do Perfil.
 - [x] Consumo médio por posto (km/l): quando um veículo é selecionado no
       abastecimento, o KM do odômetro vira **obrigatório** (antes era opcional).
       `GET /api/stations/:id/vehicle-stats` calcula a distância entre dois
@@ -194,15 +193,22 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       (mesmo critério do `MIN_REPORTS` da reputação). Exibido em `StationDetails.jsx`
       na seção "Consumo médio por veículo", **lado a lado** com a avaliação por
       texto (Positivo/Suspeito/Negativo) — não substitui, é aditivo.
+- [x] **Fix importante de CSS**: `index.css` tinha um reset (`* { margin:0;
+      padding:0 }`) fora de qualquer `@layer`. No Tailwind v4, CSS fora de layer
+      sempre vence sobre CSS em layer (as utilities do Tailwind vivem em
+      `@layer utilities`) — isso zerava `mb-8`, `p-4`, `space-y-*` etc **no app
+      inteiro**, não só num lugar. Era a causa real do "formulário
+      espremido/encostado no canto". Corrigido envolvendo o reset em
+      `@layer base`. **Ao adicionar CSS solto em `index.css` no futuro, sempre
+      colocar dentro de `@layer base` (ou `components`) — nunca fora —, senão
+      ele volta a atropelar qualquer utility do Tailwind.**
 
-**Estado em 2026-07-05: tudo commitado (até `8f350aa`), pushado pro GitHub e buildado
+**Estado em 2026-07-06: tudo commitado (até `f8306b0`), pushado pro GitHub e buildado
 em produção. Nenhuma tarefa pendente desta rodada.** Próximo passo combinado com o
-usuário: melhorar visualmente as telas de cadastro/formulário (hoje parecem
-"formulário padrão" — pequenas, encostadas no canto; ideia dele é algo mais
-flutuante/espaçoso). Ele vai apontando ajustes visuais aos poucos, junto com as
-próximas features — não é pra fazer uma repaginada grande de uma vez, é incremental.
-Ver o bug de overlap do `AuthLayout` anotado acima como primeiro candidato dessa
-rodada de polimento.
+usuário: continuar melhorando visualmente as telas de cadastro/formulário aos poucos
+(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada grande de
+uma vez). O bug de overlap do card em viewports estreitos (Login/Register/Install)
+**já foi resolvido** junto com o fix de CSS acima.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —

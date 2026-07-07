@@ -7,8 +7,9 @@ export default function FullScreenPrompt({
   icon, title, desc, spinner, error,
   primaryLabel, onPrimary, secondaryLabel, onSecondary,
 }) {
+  // z-index acima de 1000 — os controles do Leaflet (zoom/atribuição) usam 1000 e vazavam por cima
   return (
-    <div className="fixed inset-0 z-[900] bg-void flex flex-col justify-between p-6">
+    <div className="fixed inset-0 z-[1100] bg-void flex flex-col justify-between p-6">
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
         <span className="text-5xl" aria-hidden="true">{icon}</span>
         <h2 className="text-xl font-bold text-slate-100 max-w-xs">{title}</h2>

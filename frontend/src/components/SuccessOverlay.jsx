@@ -9,8 +9,10 @@ export default function SuccessOverlay({ icon = '✅', iconTone = 'accent', titl
     warn:   'bg-rep-suspect/12 border-rep-suspect/35',
   };
 
+  // z-index acima de 1000 — os controles do Leaflet (zoom/atribuição) usam 1000 e
+  // vazavam por cima nas telas com mapa atrás (ex: cadastro de posto)
   return (
-    <div className="fixed inset-0 z-[900] bg-navy-950/88 backdrop-blur-md flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[1100] bg-navy-950/88 backdrop-blur-md flex items-center justify-center p-6">
       <div className="bg-navy-800 border border-navy-600 rounded-[20px] px-7 py-8 max-w-[380px] w-full shadow-2xl shadow-black/50 text-center">
         <div
           aria-hidden="true"

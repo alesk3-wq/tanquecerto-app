@@ -11,6 +11,24 @@ async function create(req, res, next) {
     const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [station_id]);
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
 
+    // Só pode avaliar quem abasteceu no posto e ainda não avaliou aquele abastecimento:
+    // precisa existir um refuel sem nenhuma avaliação criada depois dele (mesma condição
+    // do lembrete de avaliação pendente). Ao avaliar, o refuel deixa de ser elegível.
+    const [eligible] = await db.query(
+      `SELECT 1 FROM refuels r
+       WHERE r.user_id = ? AND r.station_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM reports rep
+           WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
+             AND rep.created_at >= r.refueled_at
+         )
+       LIMIT 1`,
+      [req.user.id, station_id]
+    );
+    if (!eligible.length) {
+      return res.status(403).json({ error: 'Você precisa registrar um abastecimento neste posto antes de avaliá-lo.' });
+    }
+
     // 1 relato por usuário por dia por posto
     const [existing] = await db.query(
       `SELECT id FROM reports

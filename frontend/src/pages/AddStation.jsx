@@ -17,7 +17,7 @@ function ClickMarker({ position, onSelect }) {
 }
 
 // Card compacto de posto próximo (usado no aviso inline e no modal de duplicata)
-function NearbyStationRow({ station, onReview }) {
+function NearbyStationRow({ station, onView }) {
   return (
     <div className="bg-navy-950 border border-navy-600 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2.5">
       <div className="min-w-0">
@@ -28,10 +28,10 @@ function NearbyStationRow({ station, onReview }) {
         <ReputationBadge reputation={station.reputation} />
         <button
           type="button"
-          onClick={onReview}
+          onClick={onView}
           className="bg-accent text-navy-950 font-bold text-[11px] rounded-lg px-2.5 py-2 whitespace-nowrap"
         >
-          Avaliar
+          Ver posto
         </button>
       </div>
     </div>
@@ -172,7 +172,7 @@ export default function AddStation() {
 
         <div className="flex flex-col gap-3 mb-5 text-left">
           {nearbyStations.slice(0, 3).map((s) => (
-            <NearbyStationRow key={s.id} station={s} onReview={() => navigate(`/stations/${s.id}/report`)} />
+            <NearbyStationRow key={s.id} station={s} onView={() => navigate(`/stations/${s.id}`)} />
           ))}
         </div>
 
@@ -262,7 +262,7 @@ export default function AddStation() {
             </p>
             <div className="flex flex-col gap-2">
               {nearbyStations.slice(0, 3).map((s) => (
-                <NearbyStationRow key={s.id} station={s} onReview={() => navigate(`/stations/${s.id}/report`)} />
+                <NearbyStationRow key={s.id} station={s} onView={() => navigate(`/stations/${s.id}`)} />
               ))}
             </div>
             <p className="text-slate-600 text-xs mt-2.5">

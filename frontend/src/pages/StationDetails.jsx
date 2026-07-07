@@ -320,19 +320,14 @@ export default function StationDetails() {
 
         {/* CTAs */}
         {user ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Button size="md" onClick={() => navigate(`/stations/${id}/report`)}>
-              ✍️ Avaliar
-            </Button>
-            <Button size="md" variant="secondary" onClick={() => navigate(`/stations/${id}/refuel`)}>
-              ⛽ Abastecer
-            </Button>
-          </div>
+          <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>
+            ⛽ Abastecer
+          </Button>
         ) : (
           <div className="bg-navy-800 rounded-xl border border-navy-600 p-4 text-center">
             <p className="text-sm text-slate-400">
               <Link to="/login" className="text-accent font-semibold hover:underline">Faça login</Link>
-              {' '}para avaliar este posto
+              {' '}para abastecer e avaliar este posto
             </p>
           </div>
         )}
@@ -351,10 +346,9 @@ export default function StationDetails() {
               <p className="text-3xl mb-2" aria-hidden="true">🗳️</p>
               <p className="text-slate-500 text-sm">Nenhuma avaliação ainda.</p>
               {user && (
-                <button onClick={() => navigate(`/stations/${id}/report`)}
-                  className="mt-3 text-sm text-accent hover:underline font-medium">
-                  Seja o primeiro a avaliar →
-                </button>
+                <p className="text-xs text-slate-600 mt-2 px-6">
+                  Abasteça aqui para poder avaliar este posto.
+                </p>
               )}
             </div>
           ) : (

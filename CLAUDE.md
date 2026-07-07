@@ -93,6 +93,14 @@ Acesse: http://localhost:5173
 | ≤ 0      | bad       | Vermelho |
 | < 3 relatos | unknown | Cinza  |
 
+**Só avalia quem abasteceu** (evita falso positivo): `POST /api/reports` exige um
+abastecimento do usuário naquele posto **sem avaliação criada depois dele** (mesma
+condição do lembrete pendente — `NOT EXISTS report com created_at >= refuel.refueled_at`).
+Avaliou → o refuel deixa de ser elegível, só libera abastecendo de novo; 2 abastecimentos
+sem avaliar contam como 1 avaliação. Inelegível → 403. O caminho na UI é abastecer →
+"Avaliar agora" (ou o lembrete de 2 dias); não há mais botão "Avaliar" solto nos detalhes.
+Limite adicional de 1 avaliação/posto/dia (429) mantido.
+
 ## API — endpoints principais
 
 Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
@@ -230,8 +238,11 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
 - [x] Busca por nome/bandeira na Home (filtro client-side, lista + marcadores)
       e preço da gasolina no card (`gas_price` no `/stations/near`: manual tem
       prioridade, senão média 15 dias; duas queries agrupadas, não por posto).
+- [x] Fix z-index: controles do Leaflet (zoom/atribuição, z 1000) vazavam por cima
+      dos overlays de tela cheia (`FullScreenPrompt`/`SuccessOverlay`, subidos p/ 1100).
+- [x] Avaliação só após abastecimento — ver seção "Sistema de reputação" acima.
 
-**Estado em 2026-07-06: tudo commitado (até `fddc313`), pushado pro GitHub e buildado
+**Estado em 2026-07-07: tudo commitado (até `d6bd49f`), pushado pro GitHub e buildado
 em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
 passo combinado com o usuário: continuar melhorando visualmente as telas de
 cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra

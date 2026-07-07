@@ -219,7 +219,19 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       Aditivo — não tira o "+ Informar" manual, só soma um sinal mais difícil
       de forjar (exige abastecimento de verdade registrado no app).
 
-**Estado em 2026-07-06: tudo commitado (até `a82bcd2`), pushado pro GitHub e buildado
+- [x] Flag "tanque cheio" (`refuels.full_tank`, default 1, migração aplicada):
+      o km/l só usa pares de abastecimentos de tanque cheio **sem parcial entre
+      eles** (`NOT EXISTS` com comparação de tuplas em `getVehicleStats`) — um
+      parcial no meio invalidava a conta. Checkbox "Completei o tanque"
+      (marcado por padrão) em `AddRefuel.jsx`. Preço médio e lembrete de
+      avaliação continuam contando parciais.
+- [x] Aviso (não bloqueante) de KM menor que o do último abastecimento do
+      carro — `GET /vehicles/mine` agora retorna `last_km` por veículo.
+- [x] Busca por nome/bandeira na Home (filtro client-side, lista + marcadores)
+      e preço da gasolina no card (`gas_price` no `/stations/near`: manual tem
+      prioridade, senão média 15 dias; duas queries agrupadas, não por posto).
+
+**Estado em 2026-07-06: tudo commitado (até `fddc313`), pushado pro GitHub e buildado
 em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
 passo combinado com o usuário: continuar melhorando visualmente as telas de
 cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra
@@ -239,7 +251,16 @@ O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
 
 ## Próximas features planejadas (roadmap)
 
-- Busca por nome de posto
+- **Tutorial de onboarding** (combinado com o usuário): cards de primeira visita
+  por tela ("coach marks"), ensinando principalmente a regra da média de consumo —
+  completar o tanque no mesmo posto pelo menos 2–3 vezes pro km/l aparecer.
+  A base técnica já existe (flag `full_tank` + mínimo de 3 medições).
+- **Backup automático do banco** (recomendado, ainda não feito): mysqldump diário
+  via cron com rotação — hoje não existe backup nenhum e há usuários reais.
+- **Rate limiting** no login/registro (recomendado, ainda não feito): sem proteção
+  contra força bruta hoje.
+- Fix do N+1 em `/stations/near` (uma query de reports por posto; os preços já
+  foram feitos agrupados, falta a reputação).
 - Filtro por tipo de combustível no mapa
 - Notificações quando próximo de posto suspeito
 - Upload de fotos

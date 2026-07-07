@@ -74,6 +74,13 @@ export default function Home() {
   const [gpsError, setGpsError] = useState(false);
   const [gpsRetry, setGpsRetry] = useState(0);
   const [radius, setRadius] = useState(5);
+  const [search, setSearch] = useState('');
+
+  // Filtro client-side por nome/bandeira — vale pra lista e pros marcadores do mapa
+  const visibleStations = search.trim()
+    ? stations.filter((s) =>
+        `${s.name} ${s.brand ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+    : stations;
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -159,7 +166,7 @@ export default function Home() {
             />
           )}
 
-          {stations.map((s) => (
+          {visibleStations.map((s) => (
             <Marker
               key={s.id}
               position={[parseFloat(s.latitude), parseFloat(s.longitude)]}
@@ -267,6 +274,18 @@ export default function Home() {
             />
           )}
 
+          {/* Busca por nome/bandeira */}
+          {!loading && stations.length > 0 && (
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="🔍 Buscar posto por nome ou bandeira..."
+              aria-label="Buscar posto por nome ou bandeira"
+              className="w-full bg-navy-800 border border-navy-600 text-slate-200 text-sm rounded-xl px-4 py-2.5 mb-3 focus:outline-none focus:border-accent/40 placeholder-slate-600"
+            />
+          )}
+
           {loading && (
             <div className="flex justify-center py-6">
               <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -274,7 +293,12 @@ export default function Home() {
           )}
 
           <div className="space-y-3">
-            {!loading && stations.map((s) => <StationCard key={s.id} station={s} />)}
+            {!loading && visibleStations.map((s) => <StationCard key={s.id} station={s} />)}
+            {!loading && stations.length > 0 && visibleStations.length === 0 && (
+              <p className="text-center text-sm text-slate-500 py-6">
+                Nenhum posto encontrado para "{search.trim()}".
+              </p>
+            )}
             {!loading && !stations.length && !error && userPos && (
               <div className="text-center py-8 bg-navy-800/50 rounded-xl border border-dashed border-navy-600">
                 <p className="text-2xl mb-2" aria-hidden="true">🔍</p>

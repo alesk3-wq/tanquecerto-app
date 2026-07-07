@@ -65,6 +65,28 @@ async function findNear(req, res, next) {
       }
     }
 
+    // Preço da gasolina para o card (manual tem prioridade; senão média 15 dias) —
+    // duas queries agrupadas para o conjunto todo, não uma por posto
+    if (nearby.length > 0) {
+      const ids = nearby.map((s) => s.id);
+      const [manual] = await db.query(
+        `SELECT station_id, price FROM fuel_prices WHERE fuel_type = 'gasoline' AND station_id IN (?)`,
+        [ids]
+      );
+      const [computed] = await db.query(
+        `SELECT station_id, ROUND(AVG(total_value / liters), 3) AS avg_price
+         FROM refuels
+         WHERE fuel_type = 'gasoline' AND station_id IN (?)
+           AND refueled_at >= DATE_SUB(CURDATE(), INTERVAL 15 DAY)
+         GROUP BY station_id`,
+        [ids]
+      );
+      const priceById = {};
+      for (const row of computed) priceById[row.station_id] = row.avg_price;
+      for (const row of manual) priceById[row.station_id] = row.price;
+      for (const s of nearby) s.gas_price = priceById[s.id] ?? null;
+    }
+
     nearby.sort((a, b) => a.distance - b.distance);
     res.json(nearby);
   } catch (err) {
@@ -151,18 +173,30 @@ async function getVehicleStats(req, res, next) {
     const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
 
+    // Só pares de abastecimentos de TANQUE CHEIO contam (e sem parcial no meio):
+    // a conta (km seguinte - km) / litros do seguinte só mede o consumo real se o
+    // tanque estava cheio nos dois pontos e nenhum litro entrou entre eles.
     const [rows] = await db.query(
       `WITH ordered AS (
          SELECT r.station_id, r.fuel_type, r.vehicle_id, r.km, r.liters,
+                r.refueled_at, r.created_at,
                 LEAD(r.km) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_km,
-                LEAD(r.liters) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_liters
+                LEAD(r.liters) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_liters,
+                LEAD(r.refueled_at) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_refueled_at,
+                LEAD(r.created_at) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_created_at
          FROM refuels r
-         WHERE r.vehicle_id IS NOT NULL AND r.km IS NOT NULL
+         WHERE r.vehicle_id IS NOT NULL AND r.km IS NOT NULL AND r.full_tank = 1
        ),
        measurements AS (
-         SELECT station_id, fuel_type, vehicle_id, (next_km - km) / next_liters AS consumption
-         FROM ordered
-         WHERE next_km IS NOT NULL AND next_liters IS NOT NULL AND next_km > km
+         SELECT o.station_id, o.fuel_type, o.vehicle_id, (o.next_km - o.km) / o.next_liters AS consumption
+         FROM ordered o
+         WHERE o.next_km IS NOT NULL AND o.next_liters IS NOT NULL AND o.next_km > o.km
+           AND NOT EXISTS (
+             SELECT 1 FROM refuels p
+             WHERE p.vehicle_id = o.vehicle_id AND p.full_tank = 0
+               AND (p.refueled_at, p.created_at) > (o.refueled_at, o.created_at)
+               AND (p.refueled_at, p.created_at) < (o.next_refueled_at, o.next_created_at)
+           )
        )
        SELECT v.brand, v.model, v.year, m.fuel_type,
               ROUND(AVG(m.consumption), 1) AS avg_consumption, COUNT(*) AS samples

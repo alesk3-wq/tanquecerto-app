@@ -21,7 +21,13 @@ async function create(req, res, next) {
 async function myVehicles(req, res, next) {
   try {
     const [rows] = await db.query(
-      'SELECT id, brand, model, year FROM vehicles WHERE user_id = ? ORDER BY created_at DESC, id DESC',
+      `SELECT v.id, v.brand, v.model, v.year,
+              (SELECT r.km FROM refuels r
+               WHERE r.vehicle_id = v.id AND r.km IS NOT NULL
+               ORDER BY r.refueled_at DESC, r.created_at DESC LIMIT 1) AS last_km
+       FROM vehicles v
+       WHERE v.user_id = ?
+       ORDER BY v.created_at DESC, v.id DESC`,
       [req.user.id]
     );
     res.json(rows);

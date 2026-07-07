@@ -36,11 +36,18 @@ export default function StationCard({ station }) {
               <span>{station.distance} km de distância</span>
             </span>
           )}
-          {station.score !== undefined && (
-            <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
-              {station.score > 0 ? '+' : ''}{station.score} pts
-            </span>
-          )}
+          <span className="ml-auto flex items-center gap-2">
+            {station.gas_price && (
+              <span className="text-xs font-semibold text-accent whitespace-nowrap">
+                ⛽ R$ {parseFloat(station.gas_price).toFixed(2)}
+              </span>
+            )}
+            {station.score !== undefined && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                {station.score > 0 ? '+' : ''}{station.score} pts
+              </span>
+            )}
+          </span>
         </div>
       </div>
     </button>

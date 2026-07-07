@@ -29,6 +29,7 @@ export default function AddRefuel() {
     liters:      '',
     total_value: '',
     km:          '',
+    full_tank:   true,
     notes:       '',
     refueled_at: today,
   });
@@ -81,6 +82,13 @@ export default function AddRefuel() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Aviso (não bloqueante) de KM menor que o último abastecimento do carro selecionado
+  const selectedVehicle = vehicles.find((v) => String(v.id) === form.vehicle_id);
+  const kmWarning =
+    selectedVehicle?.last_km && form.km && parseInt(form.km) < selectedVehicle.last_km
+      ? selectedVehicle.last_km
+      : null;
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.liters || !form.total_value) { setError('Informe litros e valor total.'); return; }
@@ -96,6 +104,7 @@ export default function AddRefuel() {
         total_value: parseFloat(form.total_value),
         refueled_at: form.refueled_at,
         km:          form.km ? parseInt(form.km) : null,
+        full_tank:   form.full_tank,
         notes:       form.notes || null,
       };
       await api.post('/refuels', payload);
@@ -268,7 +277,27 @@ export default function AddRefuel() {
             <input id="refuel-km" type="number" min="0" placeholder="85000" required={!!form.vehicle_id}
               value={form.km} onChange={(e) => set('km', e.target.value)}
               className={inputClass} />
+            {kmWarning && (
+              <p className="text-xs text-rep-suspect mt-1.5">
+                ⚠️ KM menor que o do último abastecimento deste carro ({kmWarning.toLocaleString('pt-BR')} km).
+                Confira se digitou certo.
+              </p>
+            )}
           </div>
+
+          {/* Tanque cheio */}
+          <label htmlFor="refuel-fulltank"
+            className="flex items-start gap-3 bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-3 cursor-pointer">
+            <input id="refuel-fulltank" type="checkbox" checked={form.full_tank}
+              onChange={(e) => set('full_tank', e.target.checked)}
+              className="mt-0.5 accent-accent w-4 h-4" />
+            <span>
+              <span className="block text-sm font-medium text-slate-200">Completei o tanque</span>
+              <span className="block text-xs text-slate-600 mt-0.5">
+                Só abastecimentos de tanque cheio entram no cálculo de consumo (km/l).
+              </span>
+            </span>
+          </label>
 
           {/* Observação */}
           <div>

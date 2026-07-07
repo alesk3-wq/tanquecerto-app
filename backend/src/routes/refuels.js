@@ -20,6 +20,7 @@ router.post(
       return true;
     }),
     body('km').optional({ nullable: true }).isInt({ min: 0 }),
+    body('full_tank').optional().isBoolean().toBoolean(),
     body('notes').optional({ nullable: true }).isString().isLength({ max: 500 }),
   ],
   create

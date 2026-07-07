@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS refuels (
   liters DECIMAL(8,3) NOT NULL,
   total_value DECIMAL(10,2) NOT NULL,
   km INT,
+  full_tank TINYINT(1) NOT NULL DEFAULT 1,
   notes TEXT,
   refueled_at DATE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

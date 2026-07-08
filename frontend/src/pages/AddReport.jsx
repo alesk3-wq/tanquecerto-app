@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
 import Button from '../components/Button';
-import { FUEL_ORDER, FUEL_LABELS } from '../constants/fuels';
+import { FUEL_LABELS } from '../constants/fuels';
 import { repColor } from '../constants/reputation';
 
 const TYPES = [
@@ -22,21 +22,26 @@ const TYPE_RESULT = {
 export default function AddReport() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const prefill = location.state?.prefill;
-  const [form, setForm] = useState({ type: '', fuel_type: prefill?.fuel_type ?? 'gasoline' });
+  const [type, setType] = useState('');
+  const [refuel, setRefuel] = useState(undefined); // undefined = carregando, null = inelegível
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(null);
 
+  useEffect(() => {
+    api.get(`/stations/${id}/reviewable-refuel`)
+      .then(({ data }) => setRefuel(data))
+      .catch(() => setRefuel(null));
+  }, [id]);
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.type) { setError('Selecione o tipo de avaliação.'); return; }
+    if (!type) { setError('Selecione o tipo de avaliação.'); return; }
     setError('');
     setLoading(true);
     try {
-      await api.post('/reports', { station_id: parseInt(id), ...form });
-      setSubmitted(form.type);
+      await api.post('/reports', { station_id: parseInt(id), type });
+      setSubmitted(type);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Erro ao enviar avaliação.');
     } finally {
@@ -75,14 +80,56 @@ export default function AddReport() {
     );
   }
 
+  // Carregando elegibilidade
+  if (refuel === undefined) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Sem abastecimento elegível (ex: acesso direto pela URL)
+  if (refuel === null) {
+    return (
+      <div className="max-w-lg mx-auto p-4">
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
+          <p className="text-3xl mb-3" aria-hidden="true">⛽</p>
+          <p className="text-slate-200 font-semibold mb-1">Avaliação disponível após abastecer</p>
+          <p className="text-sm text-slate-500 mb-5">
+            Você precisa registrar um abastecimento neste posto antes de avaliá-lo.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>⛽ Abastecer</Button>
+            <Button size="md" variant="ghost" onClick={() => navigate('/')}>Voltar ao mapa</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
       <h1 className="text-xl font-bold text-slate-100">Avaliar posto</h1>
-      {prefill && (
-        <p className="text-xs text-slate-500 -mt-2">
-          Combustível preenchido automaticamente do seu abastecimento.
+
+      {/* Abastecimento sendo avaliado (só leitura) */}
+      <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
+        <p className={'block text-rep-unknown text-[11px] font-semibold uppercase tracking-[0.07em] mb-2'}>
+          Você está avaliando o abastecimento
         </p>
-      )}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-100 truncate">{refuel.station_name}</p>
+            {refuel.station_brand && <p className="text-sm text-slate-500">{refuel.station_brand}</p>}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-sm font-semibold text-accent">{FUEL_LABELS[refuel.fuel_type] ?? refuel.fuel_type}</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {new Date(refuel.refueled_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <ErrorMessage message={error} />
@@ -94,40 +141,19 @@ export default function AddReport() {
               <label
                 key={t.value}
                 className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                  form.type === t.value
+                  type === t.value
                     ? `${t.border} ${t.bg}`
                     : 'border-navy-600 hover:border-navy-500'
                 }`}
               >
                 <input type="radio" name="type" value={t.value}
-                  checked={form.type === t.value}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  checked={type === t.value}
+                  onChange={(e) => setType(e.target.value)}
                   className="mt-0.5 accent-accent" />
                 <div>
                   <p className="font-medium text-sm text-slate-200">{t.label}</p>
                   <p className="text-xs text-slate-500">{t.desc}</p>
                 </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
-          <p className="font-medium text-slate-300 mb-3">Tipo de combustível</p>
-          <div className="grid grid-cols-2 gap-2">
-            {FUEL_ORDER.map((f) => (
-              <label key={f}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-sm transition-all ${
-                  form.fuel_type === f
-                    ? 'border-accent/50 bg-accent/10 text-accent font-medium'
-                    : 'border-navy-600 text-slate-400 hover:border-navy-500'
-                }`}
-              >
-                <input type="radio" name="fuel_type" value={f}
-                  checked={form.fuel_type === f}
-                  onChange={(e) => setForm({ ...form, fuel_type: e.target.value })}
-                  className="sr-only" />
-                {FUEL_LABELS[f]}
               </label>
             ))}
           </div>

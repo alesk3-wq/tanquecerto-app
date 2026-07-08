@@ -214,4 +214,28 @@ async function getVehicleStats(req, res, next) {
   }
 }
 
-module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats };
+// Abastecimento elegível para avaliação neste posto (o mais recente sem avaliação depois)
+// — usado na tela de avaliação pra mostrar posto/bandeira/data/combustível reais.
+async function getReviewableRefuel(req, res, next) {
+  try {
+    const [[refuel]] = await db.query(
+      `SELECT r.fuel_type, r.refueled_at, s.name AS station_name, s.brand AS station_brand
+       FROM refuels r
+       JOIN stations s ON s.id = r.station_id
+       WHERE r.user_id = ? AND r.station_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM reports rep
+           WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
+             AND rep.created_at >= r.refueled_at
+         )
+       ORDER BY r.refueled_at DESC, r.created_at DESC
+       LIMIT 1`,
+      [req.user.id, req.params.id]
+    );
+    res.json(refuel ?? null);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel };

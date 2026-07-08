@@ -6,28 +6,31 @@ async function create(req, res, next) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { station_id, type, fuel_type, description } = req.body;
+    const { station_id, type, description } = req.body;
 
     const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [station_id]);
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
 
     // Só pode avaliar quem abasteceu no posto e ainda não avaliou aquele abastecimento:
     // precisa existir um refuel sem nenhuma avaliação criada depois dele (mesma condição
-    // do lembrete de avaliação pendente). Ao avaliar, o refuel deixa de ser elegível.
-    const [eligible] = await db.query(
-      `SELECT 1 FROM refuels r
+    // do lembrete de avaliação pendente). O combustível da avaliação é o do abastecimento
+    // elegível mais recente — definido aqui, não pelo cliente.
+    const [[eligible]] = await db.query(
+      `SELECT r.fuel_type FROM refuels r
        WHERE r.user_id = ? AND r.station_id = ?
          AND NOT EXISTS (
            SELECT 1 FROM reports rep
            WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
              AND rep.created_at >= r.refueled_at
          )
+       ORDER BY r.refueled_at DESC, r.created_at DESC
        LIMIT 1`,
       [req.user.id, station_id]
     );
-    if (!eligible.length) {
+    if (!eligible) {
       return res.status(403).json({ error: 'Você precisa registrar um abastecimento neste posto antes de avaliá-lo.' });
     }
+    const fuel_type = eligible.fuel_type;
 
     // 1 relato por usuário por dia por posto
     const [existing] = await db.query(
@@ -41,7 +44,7 @@ async function create(req, res, next) {
 
     const [result] = await db.query(
       'INSERT INTO reports (user_id, station_id, type, fuel_type, description) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, station_id, type, fuel_type || 'gasoline', description || null]
+      [req.user.id, station_id, type, fuel_type, description || null]
     );
 
     res.status(201).json({ id: result.insertId, station_id, type, fuel_type, description });

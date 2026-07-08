@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
 import Button from '../components/Button';
 import { FUEL_LABELS } from '../constants/fuels';
+import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
+import { haversineKm } from '../lib/distance';
 
 const inputClass =
   'w-full bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-[11px] text-slate-100 text-sm ' +
@@ -39,9 +41,32 @@ export default function AddRefuel() {
   const [vehicleError, setVehicleError] = useState('');
   const [savingVehicle, setSavingVehicle] = useState(false);
 
+  // Só libera abastecer se o usuário estiver no posto (GPS a <= 200m)
+  const [locationStatus, setLocationStatus] = useState('checking'); // checking | ok | far | denied
+  const [distanceM, setDistanceM] = useState(null);
+
   useEffect(() => {
     api.get(`/stations/${id}`).then(({ data }) => setStation(data)).catch(() => navigate('/'));
   }, [id, navigate]);
+
+  const checkLocation = useCallback((st) => {
+    if (!st || !navigator.geolocation) { setLocationStatus('denied'); return; }
+    setLocationStatus('checking');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const km = haversineKm(pos.coords.latitude, pos.coords.longitude, parseFloat(st.latitude), parseFloat(st.longitude));
+        setDistanceM(Math.round(km * 1000));
+        setLocationStatus(km <= REFUEL_CHECK_RADIUS_KM ? 'ok' : 'far');
+      },
+      () => setLocationStatus('denied'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (station) checkLocation(station);
+  }, [station, checkLocation]);
 
   useEffect(() => {
     api.get('/vehicles/mine').then(({ data }) => {
@@ -163,6 +188,39 @@ export default function AddRefuel() {
         </div>
       )}
 
+      {station && locationStatus !== 'ok' && (
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
+          {locationStatus === 'checking' && (
+            <>
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-sm text-slate-400">Verificando se você está no posto...</p>
+            </>
+          )}
+          {locationStatus === 'far' && (
+            <>
+              <p className="text-3xl mb-3" aria-hidden="true">📍</p>
+              <p className="text-slate-200 font-semibold mb-1">Você precisa estar no posto</p>
+              <p className="text-sm text-slate-500 mb-5">
+                Só é possível registrar o abastecimento estando no posto.
+                {distanceM != null && ` Você está a cerca de ${distanceM >= 1000 ? (distanceM / 1000).toFixed(1) + ' km' : distanceM + ' m'} daqui.`}
+              </p>
+              <Button size="md" onClick={() => checkLocation(station)}>Tentar novamente</Button>
+            </>
+          )}
+          {locationStatus === 'denied' && (
+            <>
+              <p className="text-3xl mb-3" aria-hidden="true">⚠️</p>
+              <p className="text-slate-200 font-semibold mb-1">Não foi possível obter sua localização</p>
+              <p className="text-sm text-slate-500 mb-5">
+                Ative o acesso à localização no navegador para registrar o abastecimento no posto.
+              </p>
+              <Button size="md" onClick={() => checkLocation(station)}>Tentar novamente</Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {locationStatus === 'ok' && (
       <form onSubmit={handleSubmit} className="space-y-3">
         <ErrorMessage message={error} />
 
@@ -315,6 +373,7 @@ export default function AddRefuel() {
           {loading ? 'Salvando...' : '⛽ Registrar abastecimento'}
         </Button>
       </form>
+      )}
     </div>
   );
 }

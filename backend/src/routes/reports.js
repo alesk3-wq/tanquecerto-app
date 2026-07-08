@@ -9,10 +9,7 @@ router.post(
   [
     body('station_id').isInt({ min: 1 }).withMessage('station_id inválido.'),
     body('type').isIn(['good', 'suspect', 'bad']).withMessage('Tipo deve ser good, suspect ou bad.'),
-    body('fuel_type')
-      .optional()
-      .isIn(['gasoline', 'ethanol', 'diesel', 'gnv'])
-      .withMessage('Tipo de combustível inválido.'),
+    // fuel_type não vem mais do cliente — é derivado do abastecimento no controller
     body('description').optional().isString().isLength({ max: 500 }),
   ],
   create

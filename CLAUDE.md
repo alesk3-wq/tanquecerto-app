@@ -110,6 +110,11 @@ formulário se o GPS estiver a ≤ 200m do posto (`REFUEL_CHECK_RADIUS_KM`, have
 novamente". Enforcement é **só frontend** por enquanto (GPS é client-asserted; validar no
 servidor é reforço futuro no roadmap).
 
+**Cooldown anti-fraude**: `POST /api/refuels` recusa (429) se o mesmo usuário já
+registrou um abastecimento naquele posto nas últimas **3h** (`MIN_HOURS_BETWEEN_REFUELS`
+em `refuelsController`, ancorado em `created_at`). É por posto — abastecer em outro posto
+no período segue liberado.
+
 ## API — endpoints principais
 
 Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
@@ -251,8 +256,10 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       dos overlays de tela cheia (`FullScreenPrompt`/`SuccessOverlay`, subidos p/ 1100).
 - [x] Avaliação só após abastecimento + combustível autoritativo do servidor, e
       abastecer só estando no posto (GPS ≤ 200m) — ver seção "Sistema de reputação".
+- [x] Cooldown anti-fraude de 3h entre abastecimentos do mesmo usuário no mesmo posto
+      (429 em `POST /api/refuels`) — ver seção "Sistema de reputação".
 
-**Estado em 2026-07-07: tudo commitado (até `fb619da`), pushado pro GitHub e buildado
+**Estado em 2026-07-07: tudo commitado (até `94a63a3`), pushado pro GitHub e buildado
 em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
 passo combinado com o usuário: continuar melhorando visualmente as telas de
 cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra

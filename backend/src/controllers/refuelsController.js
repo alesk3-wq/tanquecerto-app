@@ -1,6 +1,9 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
 
+// Anti-fraude: intervalo mínimo entre dois abastecimentos do mesmo usuário no mesmo posto
+const MIN_HOURS_BETWEEN_REFUELS = 3;
+
 async function create(req, res, next) {
   try {
     const errors = validationResult(req);
@@ -10,6 +13,21 @@ async function create(req, res, next) {
 
     const [[station]] = await db.query('SELECT id, name FROM stations WHERE id = ?', [station_id]);
     if (!station) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    // Cooldown: não deixa registrar dois abastecimentos no mesmo posto em poucas horas.
+    // Ancorado em created_at (horário real do registro), não em refueled_at (data escolhida).
+    const [[recent]] = await db.query(
+      `SELECT id FROM refuels
+       WHERE user_id = ? AND station_id = ?
+         AND created_at >= NOW() - INTERVAL ? HOUR
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id, station_id, MIN_HOURS_BETWEEN_REFUELS]
+    );
+    if (recent) {
+      return res.status(429).json({
+        error: 'Você já registrou um abastecimento neste posto há pouco. Aguarde algumas horas antes de registrar outro.',
+      });
+    }
 
     if (vehicle_id) {
       const [[vehicle]] = await db.query(

@@ -100,6 +100,15 @@ Avaliou → o refuel deixa de ser elegível, só libera abastecendo de novo; 2 a
 sem avaliar contam como 1 avaliação. Inelegível → 403. O caminho na UI é abastecer →
 "Avaliar agora" (ou o lembrete de 2 dias); não há mais botão "Avaliar" solto nos detalhes.
 Limite adicional de 1 avaliação/posto/dia (429) mantido.
+O **combustível da avaliação é autoritativo do servidor**: vem do abastecimento elegível
+mais recente (`GET /api/stations/:id/reviewable-refuel`), não do cliente — a tela de
+avaliação só exibe posto/bandeira/data/combustível em leitura, sem seletor.
+
+**Abastecer só no posto**: `AddRefuel.jsx` pede a posição do usuário e só mostra o
+formulário se o GPS estiver a ≤ 200m do posto (`REFUEL_CHECK_RADIUS_KM`, haversine em
+`frontend/src/lib/distance.js`). Fora do raio / GPS negado → bloqueio com "Tentar
+novamente". Enforcement é **só frontend** por enquanto (GPS é client-asserted; validar no
+servidor é reforço futuro no roadmap).
 
 ## API — endpoints principais
 
@@ -240,9 +249,10 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       prioridade, senão média 15 dias; duas queries agrupadas, não por posto).
 - [x] Fix z-index: controles do Leaflet (zoom/atribuição, z 1000) vazavam por cima
       dos overlays de tela cheia (`FullScreenPrompt`/`SuccessOverlay`, subidos p/ 1100).
-- [x] Avaliação só após abastecimento — ver seção "Sistema de reputação" acima.
+- [x] Avaliação só após abastecimento + combustível autoritativo do servidor, e
+      abastecer só estando no posto (GPS ≤ 200m) — ver seção "Sistema de reputação".
 
-**Estado em 2026-07-07: tudo commitado (até `d6bd49f`), pushado pro GitHub e buildado
+**Estado em 2026-07-07: tudo commitado (até `fb619da`), pushado pro GitHub e buildado
 em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
 passo combinado com o usuário: continuar melhorando visualmente as telas de
 cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra
@@ -270,6 +280,9 @@ O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
   via cron com rotação — hoje não existe backup nenhum e há usuários reais.
 - **Rate limiting** no login/registro (recomendado, ainda não feito): sem proteção
   contra força bruta hoje.
+- **Validação server-side de presença no abastecimento** (reforço futuro): hoje o gate
+  de "estar no posto" (GPS ≤ 200m) é só no frontend. O POST /refuels poderia receber a
+  coordenada e recusar se longe do posto — ainda burlável via GPS falso, mas camada extra.
 - Fix do N+1 em `/stations/near` (uma query de reports por posto; os preços já
   foram feitos agrupados, falta a reputação).
 - Filtro por tipo de combustível no mapa

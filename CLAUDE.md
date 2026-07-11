@@ -184,8 +184,10 @@ POST /api/refuels                 Registrar abastecimento (auth, vehicle_id opci
 GET  /api/refuels/mine            Meus abastecimentos, paginado (auth)
 GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houver (auth)
 
-POST   /api/vehicles              Cadastrar veículo: brand/model/year (auth)
+POST   /api/vehicles              Cadastrar veículo: brand/model/year/default_fuel_type (auth)
 GET    /api/vehicles/mine         Meus veículos (auth)
+PUT    /api/vehicles/:id          Editar veículo (auth, só o dono)
+PUT    /api/vehicles/:id/default  Definir como carro padrão (auth, desmarca os demais)
 DELETE /api/vehicles/:id          Remover veículo (auth, só o dono)
 
 GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste posto
@@ -311,12 +313,29 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       (`report_tags`, 7 opções, só suspect/bad) — ver seção "Sistema de reputação".
       Resumo agregado por posto (2+ menções) em vez de expor avaliação individual;
       não entra no score de reputação.
+- [x] Carro padrão (`vehicles.is_default`): o primeiro carro cadastrado já nasce
+      padrão; `PUT /vehicles/:id/default` troca (desmarca os demais, só um por
+      vez). `GET /vehicles/mine` ordena padrão primeiro. Abastecimento
+      (`AddRefuel.jsx`) pré-seleciona o carro padrão em vez do mais recente
+      cadastrado; sem nenhum definido, cai pro mais recente (fallback antigo).
+      Perfil mostra badge "⭐ Padrão" + botão ☆ pra definir nos outros.
+- [x] Combustível padrão por carro (`vehicles.default_fuel_type`, nullable):
+      definido no formulário de carro do Perfil (select opcional). Ao selecionar
+      esse carro no abastecimento (pré-seleção automática ou troca manual no
+      dropdown), o combustível do formulário já vem preenchido — só se o carro
+      tiver um padrão definido, senão mantém o que já estava selecionado.
+- [x] Confirmação ao excluir carro: clicar em ✕ no Perfil não apaga mais na
+      hora — o card vira "Excluir {carro}? Não / Sim, excluir" inline antes de
+      chamar `DELETE /vehicles/:id`.
+- [x] Lista de abastecimentos do Perfil mostra o carro usado (🚗 marca modelo)
+      quando o abastecimento tem `vehicle_id` — `GET /refuels/mine` ganhou
+      `LEFT JOIN vehicles`.
 
-**Estado em 2026-07-10: tudo implementado, buildado e publicado em produção (backend
-reiniciado), ainda não commitado nesta sessão.** Próximo passo combinado com o
-usuário: continuar melhorando visualmente as telas de cadastro/formulário aos poucos
-(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada grande de
-uma vez).
+**Estado em 2026-07-11: tudo implementado, buildado e publicado em produção
+(backend reiniciado), ainda não commitado nesta sessão.** Próximo passo combinado
+com o usuário: continuar melhorando visualmente as telas de cadastro/formulário
+aos poucos (ele vai apontando ajustes conforme usa — não é pra fazer uma
+repaginada grande de uma vez).
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —

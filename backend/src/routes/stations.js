@@ -18,11 +18,13 @@ router.post(
 
 router.get('/', c.list);
 router.get('/near', c.findNear);
-router.get('/:id', c.getById);
+router.get('/:id', optionalAuth, c.getById);
 router.get('/:id/stats', c.getStats);
+router.get('/:id/problem-tags', c.getProblemTags);
 router.get('/:id/reports', optionalAuth, c.getReports);
 router.get('/:id/vehicle-stats', c.getVehicleStats);
 router.get('/:id/reviewable-refuel', auth, c.getReviewableRefuel);
+router.post('/:id/flag', auth, c.toggleFlag);
 
 router.get('/:id/prices', prices.getPrices);
 router.post(

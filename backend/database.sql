@@ -82,6 +82,28 @@ CREATE TABLE IF NOT EXISTS report_votes (
   FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
 );
 
+-- Sintomas específicos de combustível marcados numa avaliação (vocabulário
+-- fechado — ver frontend/src/constants/reportTags.js). Substituem o antigo
+-- campo de texto livre (removido antes por risco de acusação infundada).
+CREATE TABLE IF NOT EXISTS report_tags (
+  report_id INT NOT NULL,
+  tag ENUM('engasgo','cheiro_cor','consumo_pior','luz_acesa',
+           'bomba_suspeita','motor_irregular','preco_divergente') NOT NULL,
+  PRIMARY KEY (report_id, tag),
+  FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+);
+
+-- Sinalização comunitária: "não encontrei esse posto no endereço indicado"
+CREATE TABLE IF NOT EXISTS station_flags (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  station_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_station_flag (user_id, station_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS fuel_prices (
   id INT AUTO_INCREMENT PRIMARY KEY,
   station_id INT NOT NULL,
@@ -100,3 +122,5 @@ CREATE INDEX idx_stations_location ON stations(latitude, longitude);
 CREATE INDEX idx_reports_user_station_date ON reports(user_id, station_id, created_at);
 -- Índice para achar o abastecimento anterior/seguinte do mesmo veículo (cálculo de consumo)
 CREATE INDEX idx_refuels_vehicle_date ON refuels(vehicle_id, refueled_at, created_at);
+-- Índice para contar rapidamente sinalizações por posto (quórum de "posto não existe")
+CREATE INDEX idx_station_flags_station ON station_flags(station_id);

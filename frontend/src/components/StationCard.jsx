@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ReputationBadge from './ReputationBadge';
+import StationStatusBadge from './StationStatusBadge';
 import { repColor } from '../constants/reputation';
 
 export default function StationCard({ station }) {
@@ -24,8 +25,9 @@ export default function StationCard({ station }) {
               <p className="text-xs text-slate-500 mt-1 truncate">{station.address}</p>
             )}
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex flex-col items-end gap-1.5">
             <ReputationBadge reputation={station.reputation} />
+            <StationStatusBadge status={station.station_status} />
           </div>
         </div>
 

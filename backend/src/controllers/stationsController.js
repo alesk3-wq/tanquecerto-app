@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const db = require('../config/db');
 const { haversineDistance } = require('../utils/distance');
 const { buildStats } = require('../services/reputationService');
+const { computeStationStatus, daysSince, MIN_STATION_FLAGS } = require('../services/stationStatusService');
 
 async function create(req, res, next) {
   try {
@@ -26,13 +27,35 @@ async function list(req, res, next) {
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
     const offset = (page - 1) * limit;
 
+    // Postos sinalizados (quórum de "não existe") ficam de fora da listagem por
+    // padrão — ver stationStatusService. Nunca são apagados, só somem da busca.
     const [rows] = await db.query(
-      'SELECT id, name, brand, address, latitude, longitude, created_at FROM stations ORDER BY created_at DESC LIMIT ? OFFSET ?',
-      [limit, offset]
+      `SELECT s.id, s.name, s.brand, s.address, s.latitude, s.longitude, s.created_at,
+              EXISTS(SELECT 1 FROM refuels r WHERE r.station_id = s.id) AS has_refuel,
+              (SELECT COUNT(*) FROM station_flags f WHERE f.station_id = s.id) AS flag_count
+       FROM stations s
+       HAVING flag_count < ?
+       ORDER BY s.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [MIN_STATION_FLAGS, limit, offset]
     );
-    const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM stations');
+    const [[{ total }]] = await db.query(
+      `SELECT COUNT(*) AS total FROM stations s
+       WHERE (SELECT COUNT(*) FROM station_flags f WHERE f.station_id = s.id) < ?`,
+      [MIN_STATION_FLAGS]
+    );
 
-    res.json({ data: rows, page, limit, total, pages: Math.ceil(total / limit) });
+    const data = rows.map(({ has_refuel, flag_count, created_at, ...s }) => ({
+      ...s,
+      created_at,
+      station_status: computeStationStatus({
+        ageDays: daysSince(created_at),
+        hasRefuel: !!has_refuel,
+        flagCount: flag_count,
+      }),
+    }));
+
+    res.json({ data, page, limit, total, pages: Math.ceil(total / limit) });
   } catch (err) {
     next(err);
   }
@@ -49,7 +72,7 @@ async function findNear(req, res, next) {
     }
 
     const [stations] = await db.query(
-      'SELECT id, name, brand, address, latitude, longitude FROM stations'
+      'SELECT id, name, brand, address, latitude, longitude, created_at FROM stations'
     );
 
     const nearby = [];
@@ -61,14 +84,16 @@ async function findNear(req, res, next) {
           [s.id]
         );
         const { reputation, score } = buildStats(reports);
-        nearby.push({ ...s, distance: Math.round(dist * 10) / 10, reputation, score });
+        const { created_at, ...rest } = s;
+        nearby.push({ ...rest, distance: Math.round(dist * 10) / 10, reputation, score, _ageDays: daysSince(created_at) });
       }
     }
 
-    // Preço da gasolina para o card (manual tem prioridade; senão média 15 dias) —
-    // duas queries agrupadas para o conjunto todo, não uma por posto
     if (nearby.length > 0) {
       const ids = nearby.map((s) => s.id);
+
+      // Preço da gasolina para o card (manual tem prioridade; senão média 15 dias) —
+      // duas queries agrupadas para o conjunto todo, não uma por posto
       const [manual] = await db.query(
         `SELECT station_id, price FROM fuel_prices WHERE fuel_type = 'gasoline' AND station_id IN (?)`,
         [ids]
@@ -85,23 +110,101 @@ async function findNear(req, res, next) {
       for (const row of computed) priceById[row.station_id] = row.avg_price;
       for (const row of manual) priceById[row.station_id] = row.price;
       for (const s of nearby) s.gas_price = priceById[s.id] ?? null;
+
+      // Status do posto (ver stationStatusService) — mesmo padrão batch acima
+      const [refuelRows] = await db.query(
+        'SELECT DISTINCT station_id FROM refuels WHERE station_id IN (?)',
+        [ids]
+      );
+      const hasRefuelSet = new Set(refuelRows.map((r) => r.station_id));
+      const [flagRows] = await db.query(
+        'SELECT station_id, COUNT(*) AS flag_count FROM station_flags WHERE station_id IN (?) GROUP BY station_id',
+        [ids]
+      );
+      const flagCountById = {};
+      for (const row of flagRows) flagCountById[row.station_id] = row.flag_count;
+
+      for (const s of nearby) {
+        s.station_status = computeStationStatus({
+          ageDays: s._ageDays,
+          hasRefuel: hasRefuelSet.has(s.id),
+          flagCount: flagCountById[s.id] ?? 0,
+        });
+        delete s._ageDays;
+      }
     }
 
-    nearby.sort((a, b) => a.distance - b.distance);
-    res.json(nearby);
+    // Sinalizados (quórum atingido) somem da busca por padrão — só via link direto (getById)
+    const visible = nearby.filter((s) => s.station_status !== 'flagged');
+    visible.sort((a, b) => a.distance - b.distance);
+    res.json(visible);
   } catch (err) {
     next(err);
   }
 }
 
+// Sempre retorna o posto independente do status (acesso direto/link preservado,
+// mesmo para postos "flagged" ocultos da busca em list/near).
 async function getById(req, res, next) {
   try {
+    const userId = req.user?.id ?? null;
+    const params = [];
+
+    let userFlaggedExpr = '0 AS user_flagged';
+    if (userId) {
+      userFlaggedExpr = 'EXISTS(SELECT 1 FROM station_flags sf2 WHERE sf2.station_id = s.id AND sf2.user_id = ?) AS user_flagged';
+      params.push(userId);
+    }
+    params.push(req.params.id);
+
     const [rows] = await db.query(
-      'SELECT id, name, brand, address, latitude, longitude, created_at FROM stations WHERE id = ?',
-      [req.params.id]
+      `SELECT s.id, s.name, s.brand, s.address, s.latitude, s.longitude, s.created_at,
+              EXISTS(SELECT 1 FROM refuels r WHERE r.station_id = s.id) AS has_refuel,
+              (SELECT COUNT(*) FROM station_flags f WHERE f.station_id = s.id) AS flag_count,
+              ${userFlaggedExpr}
+       FROM stations s
+       WHERE s.id = ?`,
+      params
     );
     if (!rows.length) return res.status(404).json({ error: 'Posto não encontrado.' });
-    res.json(rows[0]);
+
+    const station = rows[0];
+    station.has_refuel = !!station.has_refuel;
+    station.user_flagged = !!station.user_flagged;
+    station.station_status = computeStationStatus({
+      ageDays: daysSince(station.created_at),
+      hasRefuel: station.has_refuel,
+      flagCount: station.flag_count,
+    });
+
+    res.json(station);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Sinalizar/desmarcar "este posto não existe" — mesmo padrão de toggle de
+// reportsController::toggleVote.
+async function toggleFlag(req, res, next) {
+  try {
+    const stationId = req.params.id;
+    const userId = req.user.id;
+
+    const [[exists]] = await db.query(
+      'SELECT id FROM station_flags WHERE user_id = ? AND station_id = ?',
+      [userId, stationId]
+    );
+
+    if (exists) {
+      await db.query('DELETE FROM station_flags WHERE user_id = ? AND station_id = ?', [userId, stationId]);
+      return res.json({ flagged: false });
+    }
+
+    const [[station]] = await db.query('SELECT id FROM stations WHERE id = ?', [stationId]);
+    if (!station) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    await db.query('INSERT INTO station_flags (user_id, station_id) VALUES (?, ?)', [userId, stationId]);
+    res.json({ flagged: true });
   } catch (err) {
     next(err);
   }
@@ -163,6 +266,31 @@ async function getReports(req, res, next) {
       data: rows.map((r) => ({ ...r, user_voted: !!r.user_voted })),
       page, limit, total, pages: Math.ceil(total / limit),
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Resumo agregado de sintomas de combustível citados nas avaliações deste
+// posto. Só soma sintomas com 2+ menções: com 1 só, "resumo agregado" na
+// prática reexporia o sintoma daquele relato específico — o que contraria a
+// razão de ter escolhido resumo agregado em vez de tag por avaliação individual.
+async function getProblemTags(req, res, next) {
+  try {
+    const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
+    if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    const [rows] = await db.query(
+      `SELECT rt.tag, COUNT(*) AS count
+       FROM report_tags rt
+       JOIN reports r ON r.id = rt.report_id
+       WHERE r.station_id = ?
+       GROUP BY rt.tag
+       HAVING count >= 2
+       ORDER BY count DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
   } catch (err) {
     next(err);
   }
@@ -238,4 +366,4 @@ async function getReviewableRefuel(req, res, next) {
   }
 }
 
-module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel };
+module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel, toggleFlag, getProblemTags };

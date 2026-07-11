@@ -2,10 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
 import ReputationBadge from '../components/ReputationBadge';
+import StationStatusBadge from '../components/StationStatusBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
+import { REPORT_TAG_LABELS } from '../constants/reportTags';
+import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
+import { haversineKm } from '../lib/distance';
 
 const TYPE_CONFIG  = {
   good:    { label: 'Positivo',  icon: '✅', color: 'text-rep-good',    bg: 'bg-rep-good/10',    border: 'border-rep-good/30'    },
@@ -38,12 +42,20 @@ export default function StationDetails() {
   const [stats, setStats]       = useState(null);
   const [reports, setReports]   = useState([]);
   const [prices, setPrices]     = useState([]);
+  const [problemTags, setProblemTags] = useState([]);
   const [vehicleStats, setVehicleStats] = useState([]);
   const [favorited, setFavorited] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favError, setFavError] = useState('');
   const [loading, setLoading]   = useState(true);
   const [pageError, setPageError] = useState('');
+
+  // Sinalizar "este posto não existe" — só disponível pra quem está fisicamente
+  // no local (mesmo raio de GPS do abastecimento), pra evitar sinalização remota.
+  const [flagged, setFlagged]   = useState(false);
+  const [flagBusy, setFlagBusy] = useState(false);
+  const [flagError, setFlagError] = useState(false);
+  const [nearStation, setNearStation] = useState(false);
 
   // Price form state
   const [showPriceForm, setShowPriceForm] = useState(false);
@@ -66,6 +78,7 @@ export default function StationDetails() {
         api.get(`/stations/${id}/vehicle-stats`),
       ]);
       setStation(s.data);
+      setFlagged(!!s.data.user_flagged);
       setStats(st.data);
       setReports(r.data.data);
       setVehicleStats(vs.data);
@@ -89,10 +102,25 @@ export default function StationDetails() {
 
     // Requisições opcionais — não bloqueiam a página
     api.get(`/stations/${id}/prices`).then(({ data }) => setPrices(data)).catch(() => {});
+    api.get(`/stations/${id}/problem-tags`).then(({ data }) => setProblemTags(data)).catch(() => {});
     if (user) {
       api.get(`/favorites/${id}`).then(({ data }) => setFavorited(data.favorited)).catch(() => {});
     }
   }, [id, user, loadStation]);
+
+  // Checagem silenciosa de GPS só pra decidir se mostra o botão de sinalizar
+  // (sem UI de "verificando/tentar de novo" como no abastecimento — aqui é opcional).
+  useEffect(() => {
+    if (!station || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const km = haversineKm(pos.coords.latitude, pos.coords.longitude, parseFloat(station.latitude), parseFloat(station.longitude));
+        setNearStation(km <= REFUEL_CHECK_RADIUS_KM);
+      },
+      () => setNearStation(false),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  }, [station]);
 
   async function toggleFavorite() {
     if (!user) { navigate('/login'); return; }
@@ -105,6 +133,21 @@ export default function StationDetails() {
       setFavError('Não foi possível atualizar o favorito.');
     } finally {
       setFavLoading(false);
+    }
+  }
+
+  async function toggleFlag() {
+    if (!user) { navigate('/login'); return; }
+    if (flagBusy) return;
+    setFlagBusy(true);
+    setFlagError(false);
+    try {
+      const { data } = await api.post(`/stations/${id}/flag`);
+      setFlagged(data.flagged);
+    } catch {
+      setFlagError(true);
+    } finally {
+      setFlagBusy(false);
     }
   }
 
@@ -159,6 +202,7 @@ export default function StationDetails() {
           </div>
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
             {stats && <ReputationBadge reputation={rep} size="lg" />}
+            <StationStatusBadge status={station.station_status} />
             {/* Botão favorito */}
             <button
               onClick={toggleFavorite}
@@ -195,6 +239,26 @@ export default function StationDetails() {
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Problemas mais citados — resumo agregado, nunca por avaliação
+            individual (só sintomas com 2+ menções, ver backend) */}
+        {problemTags.length > 0 && (
+          <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b border-navy-600">
+              <h2 className="font-semibold text-slate-200">⚠️ Problemas mais citados</h2>
+            </div>
+            <div className="divide-y divide-navy-600">
+              {problemTags.map((pt) => (
+                <div key={pt.tag} className="px-4 py-3 flex items-center justify-between gap-2">
+                  <p className="text-sm text-slate-300">{REPORT_TAG_LABELS[pt.tag] ?? pt.tag}</p>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rep-bad/10 text-rep-bad flex-shrink-0">
+                    {pt.count}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -318,6 +382,19 @@ export default function StationDetails() {
           )}
         </div>
 
+        {/* Aviso não bloqueante — posto atingiu o quórum de sinalização comunitária.
+            O abastecimento continua liberado normalmente: um abastecimento real
+            aqui é contraevidência útil. */}
+        {station.station_status === 'flagged' && (
+          <div className="bg-rep-bad/10 border border-rep-bad/30 rounded-xl p-4 flex gap-3 items-start">
+            <span className="text-xl leading-none" aria-hidden="true">⚠️</span>
+            <p className="text-sm text-rep-bad">
+              Vários usuários não encontraram este posto no endereço indicado.
+              Se você abastecer aqui, ajude a confirmar registrando o abastecimento.
+            </p>
+          </div>
+        )}
+
         {/* CTAs */}
         {user ? (
           <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>
@@ -329,6 +406,24 @@ export default function StationDetails() {
               <Link to="/login" className="text-accent font-semibold hover:underline">Faça login</Link>
               {' '}para abastecer e avaliar este posto
             </p>
+          </div>
+        )}
+
+        {/* Sinalizar posto inexistente — só aparece pra quem está fisicamente no local */}
+        {user && nearStation && (
+          <div>
+            <button
+              type="button"
+              onClick={toggleFlag}
+              disabled={flagBusy}
+              aria-pressed={flagged}
+              className={`w-full text-center text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors
+                ${flagged ? 'bg-rep-bad/10 border-rep-bad/30 text-rep-bad' : 'bg-transparent border-navy-600 text-slate-500 hover:text-rep-bad hover:border-rep-bad/30'}
+                ${flagBusy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              {flagged ? '🚩 Você reportou que este posto não existe' : '🚩 Não encontrei este posto aqui'}
+            </button>
+            {flagError && <p className="text-xs text-rep-bad text-center mt-1.5">Falhou, tente de novo.</p>}
           </div>
         )}
 

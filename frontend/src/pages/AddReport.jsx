@@ -6,6 +6,7 @@ import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '..
 import Button from '../components/Button';
 import { FUEL_LABELS } from '../constants/fuels';
 import { repColor } from '../constants/reputation';
+import { REPORT_TAG_LABELS, REPORT_TAG_ORDER } from '../constants/reportTags';
 
 const TYPES = [
   { value: 'good',    label: '✅ Positivo',  desc: 'Combustível de qualidade, bom atendimento',  border: 'border-rep-good/40',    bg: 'bg-rep-good/10'    },
@@ -23,10 +24,20 @@ export default function AddReport() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [type, setType] = useState('');
+  const [tags, setTags] = useState([]); // sintomas específicos, só suspect/bad
   const [refuel, setRefuel] = useState(undefined); // undefined = carregando, null = inelegível
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(null);
+
+  function handleTypeChange(value) {
+    setType(value);
+    if (value !== 'suspect' && value !== 'bad') setTags([]);
+  }
+
+  function toggleTag(tag) {
+    setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
 
   useEffect(() => {
     api.get(`/stations/${id}/reviewable-refuel`)
@@ -40,7 +51,12 @@ export default function AddReport() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/reports', { station_id: parseInt(id), type });
+      const showTags = type === 'suspect' || type === 'bad';
+      await api.post('/reports', {
+        station_id: parseInt(id),
+        type,
+        ...(showTags && tags.length ? { tags } : {}),
+      });
       setSubmitted(type);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Erro ao enviar avaliação.');
@@ -148,7 +164,7 @@ export default function AddReport() {
               >
                 <input type="radio" name="type" value={t.value}
                   checked={type === t.value}
-                  onChange={(e) => setType(e.target.value)}
+                  onChange={(e) => handleTypeChange(e.target.value)}
                   className="mt-0.5 accent-accent" />
                 <div>
                   <p className="font-medium text-sm text-slate-200">{t.label}</p>
@@ -158,6 +174,27 @@ export default function AddReport() {
             ))}
           </div>
         </div>
+
+        {(type === 'suspect' || type === 'bad') && (
+          <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
+            <p className="font-medium text-slate-300 mb-1">
+              Notou algum problema específico com o combustível?{' '}
+              <span className="text-slate-600 font-normal">(opcional)</span>
+            </p>
+            <p className="text-xs text-slate-500 mb-3">Marque só o que você realmente notou.</p>
+            <div className="space-y-2">
+              {REPORT_TAG_ORDER.map((tag) => (
+                <label key={tag}
+                  className="flex items-start gap-3 bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-3 cursor-pointer">
+                  <input type="checkbox" checked={tags.includes(tag)}
+                    onChange={() => toggleTag(tag)}
+                    className="mt-0.5 accent-accent w-4 h-4" />
+                  <span className="text-sm text-slate-200">{REPORT_TAG_LABELS[tag]}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Button type="submit" disabled={loading}>
           {loading ? 'Enviando...' : 'Enviar avaliação'}

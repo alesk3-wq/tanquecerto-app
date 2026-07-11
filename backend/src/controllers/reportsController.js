@@ -1,12 +1,21 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
 
+// Vocabulário fechado de sintomas de combustível — espelha
+// frontend/src/constants/reportTags.js. Substitui o antigo campo de texto
+// livre (removido por risco de acusação infundada); só faz sentido quando a
+// avaliação geral for suspect/bad.
+const VALID_TAGS = new Set([
+  'engasgo', 'cheiro_cor', 'consumo_pior', 'luz_acesa',
+  'bomba_suspeita', 'motor_irregular', 'preco_divergente',
+]);
+
 async function create(req, res, next) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { station_id, type, description } = req.body;
+    const { station_id, type, description, tags } = req.body;
 
     const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [station_id]);
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
@@ -47,7 +56,21 @@ async function create(req, res, next) {
       [req.user.id, station_id, type, fuel_type, description || null]
     );
 
-    res.status(201).json({ id: result.insertId, station_id, type, fuel_type, description });
+    // Sintomas só fazem sentido numa avaliação suspect/bad — em qualquer outro
+    // caso são ignorados silenciosamente, sem erro (mesmo espírito permissivo
+    // do resto do form).
+    let validTags = [];
+    if ((type === 'suspect' || type === 'bad') && Array.isArray(tags)) {
+      validTags = [...new Set(tags)].filter((t) => VALID_TAGS.has(t));
+      if (validTags.length) {
+        await db.query(
+          'INSERT INTO report_tags (report_id, tag) VALUES ?',
+          [validTags.map((tag) => [result.insertId, tag])]
+        );
+      }
+    }
+
+    res.status(201).json({ id: result.insertId, station_id, type, fuel_type, description, tags: validTags });
   } catch (err) {
     next(err);
   }

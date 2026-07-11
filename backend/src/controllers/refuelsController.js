@@ -58,9 +58,11 @@ async function myRefuels(req, res, next) {
     const [rows] = await db.query(
       `SELECT r.id, r.fuel_type, r.liters, r.total_value, r.km, r.notes, r.refueled_at,
               ROUND(r.total_value / r.liters, 3) AS price_per_liter,
-              s.id AS station_id, s.name AS station_name, s.brand AS station_brand
+              s.id AS station_id, s.name AS station_name, s.brand AS station_brand,
+              v.brand AS vehicle_brand, v.model AS vehicle_model
        FROM refuels r
        JOIN stations s ON s.id = r.station_id
+       LEFT JOIN vehicles v ON v.id = r.vehicle_id
        WHERE r.user_id = ?
        ORDER BY r.refueled_at DESC, r.created_at DESC
        LIMIT ? OFFSET ?`,

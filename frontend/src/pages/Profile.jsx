@@ -4,7 +4,7 @@ import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
-import { FUEL_LABELS } from '../constants/fuels';
+import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 
 const TYPE_LABELS = { good: '✅ Positivo', suspect: '⚠️ Suspeito', bad: '❌ Negativo' };
 
@@ -27,10 +27,11 @@ export default function Profile() {
   const [refuelStats, setRefuelStats] = useState({ total: 0, total_liters: 0, total_spent: 0 });
 
   const [vehicles, setVehicles]   = useState([]);
-  const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '' });
+  const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '', default_fuel_type: '' });
   const [editingVehicleId, setEditingVehicleId] = useState(null);
   const [vehicleError, setVehicleError] = useState('');
   const [savingVehicle, setSavingVehicle] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadAll = useCallback(async () => {
@@ -56,13 +57,13 @@ export default function Profile() {
 
   function startEditVehicle(v) {
     setEditingVehicleId(v.id);
-    setVehicleForm({ brand: v.brand, model: v.model, year: String(v.year) });
+    setVehicleForm({ brand: v.brand, model: v.model, year: String(v.year), default_fuel_type: v.default_fuel_type ?? '' });
     setVehicleError('');
   }
 
   function cancelEditVehicle() {
     setEditingVehicleId(null);
-    setVehicleForm({ brand: '', model: '', year: '' });
+    setVehicleForm({ brand: '', model: '', year: '', default_fuel_type: '' });
     setVehicleError('');
   }
 
@@ -79,16 +80,19 @@ export default function Profile() {
         brand: vehicleForm.brand.trim(),
         model: vehicleForm.model.trim(),
         year: parseInt(vehicleForm.year),
+        default_fuel_type: vehicleForm.default_fuel_type || null,
       };
       if (editingVehicleId) {
         const { data } = await api.put(`/vehicles/${editingVehicleId}`, payload);
-        setVehicles((prev) => prev.map((v) => (v.id === editingVehicleId ? data : v)));
+        // Spread de v primeiro: PUT de edição não devolve is_default, então
+        // preserva o valor que já estava carregado em vez de perdê-lo.
+        setVehicles((prev) => prev.map((v) => (v.id === editingVehicleId ? { ...v, ...data } : v)));
         setEditingVehicleId(null);
       } else {
         const { data } = await api.post('/vehicles', payload);
         setVehicles((prev) => [data, ...prev]);
       }
-      setVehicleForm({ brand: '', model: '', year: '' });
+      setVehicleForm({ brand: '', model: '', year: '', default_fuel_type: '' });
     } catch (err) {
       setVehicleError(err.response?.data?.error ?? 'Erro ao salvar veículo.');
     } finally {
@@ -96,8 +100,19 @@ export default function Profile() {
     }
   }
 
+  async function setDefaultVehicle(id) {
+    setVehicleError('');
+    try {
+      await api.put(`/vehicles/${id}/default`);
+      setVehicles((prev) => prev.map((v) => ({ ...v, is_default: v.id === id })));
+    } catch {
+      setVehicleError('Não foi possível definir o carro padrão.');
+    }
+  }
+
   async function removeVehicle(id) {
     setVehicleError('');
+    setConfirmDeleteId(null);
     try {
       await api.delete(`/vehicles/${id}`);
       setVehicles((prev) => prev.filter((v) => v.id !== id));
@@ -260,6 +275,9 @@ export default function Profile() {
                         <div className="min-w-0">
                           <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
                           {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
+                          {r.vehicle_brand && (
+                            <p className="text-xs text-slate-500 mt-0.5">🚗 {r.vehicle_brand} {r.vehicle_model}</p>
+                          )}
                         </div>
                         <span className="text-xs text-slate-500 flex-shrink-0">
                           {new Date(r.refueled_at).toLocaleDateString('pt-BR')}
@@ -353,6 +371,14 @@ export default function Profile() {
                     type="number"
                     className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
                   />
+                  <select
+                    value={vehicleForm.default_fuel_type}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, default_fuel_type: e.target.value })}
+                    className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
+                  >
+                    <option value="">Combustível padrão (opcional)</option>
+                    {FUEL_ORDER.map((f) => <option key={f} value={f}>{FUEL_LABELS[f]}</option>)}
+                  </select>
                 </div>
                 <div className="flex gap-2">
                   <button type="submit" disabled={savingVehicle}
@@ -374,23 +400,60 @@ export default function Profile() {
                 <div className="space-y-3">
                   {vehicles.map((v) => (
                     <div key={v.id} className="bg-navy-800 rounded-xl border border-navy-600 p-4 flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm text-slate-200 truncate min-w-0">
-                        {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
-                      </p>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <button
-                          onClick={() => startEditVehicle(v)}
-                          title="Editar carro"
-                          aria-label={`Editar ${v.brand} ${v.model}`}
-                          className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
-                        >✎</button>
-                        <button
-                          onClick={() => removeVehicle(v.id)}
-                          title="Remover carro"
-                          aria-label={`Remover ${v.brand} ${v.model}`}
-                          className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
-                        >✕</button>
-                      </div>
+                      {confirmDeleteId === v.id ? (
+                        <>
+                          <p className="text-sm text-slate-300 min-w-0">
+                            Excluir {v.brand} {v.model} ({v.year})?
+                          </p>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-xs font-semibold text-slate-400 border border-navy-600 rounded-lg px-3 py-1.5"
+                            >Não</button>
+                            <button
+                              onClick={() => removeVehicle(v.id)}
+                              className="text-xs font-semibold text-white bg-rep-bad rounded-lg px-3 py-1.5"
+                            >Sim, excluir</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-slate-200 truncate">
+                              {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
+                            </p>
+                            {v.default_fuel_type && (
+                              <p className="text-xs text-slate-500 mt-0.5">⛽ {FUEL_LABELS[v.default_fuel_type]}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            {v.is_default ? (
+                              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 rounded-full px-2 py-0.5 whitespace-nowrap">
+                                ⭐ Padrão
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setDefaultVehicle(v.id)}
+                                title="Definir como carro padrão"
+                                aria-label={`Definir ${v.brand} ${v.model} como carro padrão`}
+                                className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
+                              >☆</button>
+                            )}
+                            <button
+                              onClick={() => startEditVehicle(v)}
+                              title="Editar carro"
+                              aria-label={`Editar ${v.brand} ${v.model}`}
+                              className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
+                            >✎</button>
+                            <button
+                              onClick={() => setConfirmDeleteId(v.id)}
+                              title="Remover carro"
+                              aria-label={`Remover ${v.brand} ${v.model}`}
+                              className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
+                            >✕</button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

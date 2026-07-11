@@ -71,8 +71,10 @@ export default function AddRefuel() {
   useEffect(() => {
     api.get('/vehicles/mine').then(({ data }) => {
       setVehicles(data);
-      // Pré-seleciona o carro cadastrado mais recentemente (primeiro da lista)
-      if (data.length > 0) set('vehicle_id', String(data[0].id));
+      // Pré-seleciona o carro padrão; sem nenhum definido, cai pro mais
+      // recente (primeiro da lista, mesmo fallback de antes)
+      const preselect = data.find((v) => v.is_default) ?? data[0];
+      if (preselect) applyVehicleSelection(preselect);
     }).catch(() => {});
   }, []);
 
@@ -90,7 +92,7 @@ export default function AddRefuel() {
         year: parseInt(newVehicle.year),
       });
       setVehicles((prev) => [data, ...prev]);
-      set('vehicle_id', String(data.id));
+      applyVehicleSelection(data);
       setNewVehicle({ brand: '', model: '', year: '' });
     } catch (err) {
       setVehicleError(err.response?.data?.error ?? 'Erro ao adicionar veículo.');
@@ -105,6 +107,17 @@ export default function AddRefuel() {
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  // Troca o carro e, se ele tiver combustível padrão definido, já pré-preenche
+  // o combustível junto (sem carro ou sem padrão definido, mantém o que já
+  // estava selecionado).
+  function applyVehicleSelection(vehicle) {
+    setForm((f) => ({
+      ...f,
+      vehicle_id: vehicle ? String(vehicle.id) : '',
+      fuel_type: vehicle?.default_fuel_type ?? f.fuel_type,
+    }));
   }
 
   // Aviso (não bloqueante) de KM menor que o último abastecimento do carro selecionado
@@ -232,7 +245,8 @@ export default function AddRefuel() {
               Veículo{' '}
               <span className="text-slate-700 font-normal normal-case">(opcional)</span>
             </label>
-            <select id="refuel-vehicle" value={form.vehicle_id} onChange={(e) => set('vehicle_id', e.target.value)}
+            <select id="refuel-vehicle" value={form.vehicle_id}
+              onChange={(e) => applyVehicleSelection(vehicles.find((v) => String(v.id) === e.target.value))}
               className={`${inputClass} cursor-pointer`}>
               <option value="">Não informar</option>
               {vehicles.map((v) => (

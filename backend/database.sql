@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS vehicles (
   brand VARCHAR(60) NOT NULL,
   model VARCHAR(60) NOT NULL,
   year SMALLINT NOT NULL,
+  is_default TINYINT(1) NOT NULL DEFAULT 0,
+  default_fuel_type ENUM('gasoline', 'ethanol', 'diesel', 'gnv') NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

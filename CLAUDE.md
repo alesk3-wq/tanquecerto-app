@@ -115,6 +115,47 @@ registrou um abastecimento naquele posto nas últimas **3h** (`MIN_HOURS_BETWEEN
 em `refuelsController`, ancorado em `created_at`). É por posto — abastecer em outro posto
 no período segue liberado.
 
+**Sintomas de combustível (tags), sem texto livre**: o campo de comentário livre foi
+removido antes por risco de acusação infundada sem embasamento (coluna
+`reports.description` segue no banco, sem uso). No lugar, `POST /api/reports` aceita
+`tags` opcional — só válido quando `type` é suspect/bad, vocabulário fechado de 7
+sintomas (`engasgo`, `cheiro_cor`, `consumo_pior`, `luz_acesa`, `bomba_suspeita`,
+`motor_irregular`, `preco_divergente` — ver `frontend/src/constants/reportTags.js`,
+espelhado no `ENUM` de `report_tags.tag`); valores fora da lista ou tags mandadas com
+`type=good` são descartados silenciosamente, sem erro. `GET
+/api/stations/:id/problem-tags` devolve um resumo agregado por posto, mas só sintomas
+com **2+ menções** (com 1 só, o "agregado" reexporia o sintoma daquele relato
+específico — contrariaria a decisão de nunca marcar avaliação individual). Exibido em
+`StationDetails.jsx` como card "⚠️ Problemas mais citados", só quando a lista vier
+não-vazia. Não entra no score de reputação — `reputationService` continua olhando só
+`type` (good/suspect/bad), tags são camada informativa à parte.
+
+## Status de existência do posto (station_status)
+
+Qualquer usuário pode cadastrar um posto só com nome e lat/lng — sem dedupe nem
+moderação. Pra postos que não existem de verdade (pin errado, trote, posto fechado),
+em vez de apagar por tempo sem abastecimento (arriscado: refuels/reports têm ON
+DELETE CASCADE em station_id, e ausência de abastecimento não prova que o posto não
+existe), o status é **computado na leitura** (stationStatusService.js, sem coluna
+nova em stations, sem cron):
+
+```
+flagged      flag_count >= MIN_STATION_FLAGS (3)
+unconfirmed  senão, se idade >= GRACE_PERIOD_DAYS (14) e nunca teve refuel
+active       caso contrário
+```
+
+- unconfirmed: só um badge informativo (StationStatusBadge), nunca oculta nada —
+  mesmo espírito do bucket unknown da reputação.
+- flagged: quórum de POST /api/stations/:id/flag (toggle, tabela station_flags,
+  auth) — usuário sinaliza "não encontrei esse posto aqui". Some por padrão de GET
+  /api/stations e /api/stations/near, mas nunca é apagado: continua acessível via
+  GET /api/stations/:id (link direto), e sai do quórum sozinho se as sinalizações
+  forem desmarcadas. O botão de sinalizar em StationDetails.jsx só aparece pra quem
+  está dentro do raio de GPS do abastecimento (REFUEL_CHECK_RADIUS_KM), e o
+  abastecimento continua liberado normalmente num posto flagged (um abastecimento
+  real ali é contraevidência).
+
 ## API — endpoints principais
 
 Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
@@ -131,8 +172,11 @@ GET  /api/stations/:id           Detalhes
 GET  /api/stations/:id/stats     Estatísticas de reputação
 GET  /api/stations/:id/reports   Avaliações paginadas
 
-POST /api/reports                Criar avaliação (auth, 1/dia/posto)
+POST /api/reports                Criar avaliação (auth, 1/dia/posto; tags opcional em suspect/bad)
 GET  /api/reports/mine           Minhas avaliações (auth)
+
+GET  /api/stations/:id/problem-tags  Sintomas de combustível mais citados (agregado, 2+ menções)
+POST /api/stations/:id/flag      Sinalizar/desmarcar "este posto não existe" (auth)
 
 GET  /api/health                 Healthcheck
 
@@ -258,12 +302,21 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       abastecer só estando no posto (GPS ≤ 200m) — ver seção "Sistema de reputação".
 - [x] Cooldown anti-fraude de 3h entre abastecimentos do mesmo usuário no mesmo posto
       (429 em `POST /api/refuels`) — ver seção "Sistema de reputação".
+- [x] Status de existência do posto (`active`/`unconfirmed`/`flagged`), computado na
+      leitura sem coluna nova nem cron — ver seção "Status de existência do posto".
+      Sinalização comunitária (`station_flags`, quórum de 3) oculta posto da
+      busca por padrão sem nunca apagar; badge "não confirmado" pra posto antigo
+      sem abastecimento é só informativo.
+- [x] Sintomas de combustível como tags fechadas em vez de texto livre
+      (`report_tags`, 7 opções, só suspect/bad) — ver seção "Sistema de reputação".
+      Resumo agregado por posto (2+ menções) em vez de expor avaliação individual;
+      não entra no score de reputação.
 
-**Estado em 2026-07-07: tudo commitado (até `94a63a3`), pushado pro GitHub e buildado
-em produção (backend reiniciado). Nenhuma tarefa pendente desta rodada.** Próximo
-passo combinado com o usuário: continuar melhorando visualmente as telas de
-cadastro/formulário aos poucos (ele vai apontando ajustes conforme usa — não é pra
-fazer uma repaginada grande de uma vez).
+**Estado em 2026-07-10: tudo implementado, buildado e publicado em produção (backend
+reiniciado), ainda não commitado nesta sessão.** Próximo passo combinado com o
+usuário: continuar melhorando visualmente as telas de cadastro/formulário aos poucos
+(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada grande de
+uma vez).
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —

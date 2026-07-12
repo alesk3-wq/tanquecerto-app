@@ -3,6 +3,7 @@ const db = require('../config/db');
 const { haversineDistance } = require('../utils/distance');
 const { buildStats } = require('../services/reputationService');
 const { computeStationStatus, daysSince, MIN_STATION_FLAGS } = require('../services/stationStatusService');
+const { MIN_HOURS_BETWEEN_REFUELS } = require('./refuelsController');
 
 async function create(req, res, next) {
   try {
@@ -344,6 +345,9 @@ async function getVehicleStats(req, res, next) {
 
 // Abastecimento elegível para avaliação neste posto (o mais recente sem avaliação depois)
 // — usado na tela de avaliação pra mostrar posto/bandeira/data/combustível reais.
+// Compara com r.created_at (instante real do registro), não r.refueled_at (só a data
+// escolhida pelo usuário, sem hora) — senão dois ciclos abastecer→avaliar no mesmo dia
+// se atropelam.
 async function getReviewableRefuel(req, res, next) {
   try {
     const [[refuel]] = await db.query(
@@ -354,7 +358,7 @@ async function getReviewableRefuel(req, res, next) {
          AND NOT EXISTS (
            SELECT 1 FROM reports rep
            WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
-             AND rep.created_at >= r.refueled_at
+             AND rep.created_at >= r.created_at
          )
        ORDER BY r.refueled_at DESC, r.created_at DESC
        LIMIT 1`,
@@ -366,4 +370,25 @@ async function getReviewableRefuel(req, res, next) {
   }
 }
 
-module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel, toggleFlag, getProblemTags };
+// Checagem prévia do cooldown anti-fraude (mesma regra de POST /refuels, sem
+// inserir nada) — deixa a tela de abastecimento bloquear antes de mostrar o
+// formulário, em vez de só descobrir no submit.
+async function getRefuelCooldown(req, res, next) {
+  try {
+    const [[recent]] = await db.query(
+      `SELECT created_at FROM refuels
+       WHERE user_id = ? AND station_id = ?
+         AND created_at >= NOW() - INTERVAL ? HOUR
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id, req.params.id, MIN_HOURS_BETWEEN_REFUELS]
+    );
+    if (!recent) return res.json({ blocked: false, available_at: null });
+
+    const availableAt = new Date(recent.created_at.getTime() + MIN_HOURS_BETWEEN_REFUELS * 3600000);
+    res.json({ blocked: true, available_at: availableAt });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel, toggleFlag, getProblemTags, getRefuelCooldown };

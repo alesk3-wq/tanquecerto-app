@@ -22,15 +22,17 @@ async function create(req, res, next) {
 
     // Só pode avaliar quem abasteceu no posto e ainda não avaliou aquele abastecimento:
     // precisa existir um refuel sem nenhuma avaliação criada depois dele (mesma condição
-    // do lembrete de avaliação pendente). O combustível da avaliação é o do abastecimento
-    // elegível mais recente — definido aqui, não pelo cliente.
+    // do lembrete de avaliação pendente). Compara com r.created_at (instante real do
+    // registro), não r.refueled_at (só a data escolhida pelo usuário, sem hora) — senão
+    // dois ciclos abastecer→avaliar no mesmo dia se atropelam. O combustível da avaliação
+    // é o do abastecimento elegível mais recente — definido aqui, não pelo cliente.
     const [[eligible]] = await db.query(
       `SELECT r.fuel_type FROM refuels r
        WHERE r.user_id = ? AND r.station_id = ?
          AND NOT EXISTS (
            SELECT 1 FROM reports rep
            WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
-             AND rep.created_at >= r.refueled_at
+             AND rep.created_at >= r.created_at
          )
        ORDER BY r.refueled_at DESC, r.created_at DESC
        LIMIT 1`,

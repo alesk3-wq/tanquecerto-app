@@ -15,6 +15,12 @@ const inputClass =
 const labelClass =
   'block text-rep-unknown text-[11px] font-semibold uppercase tracking-[0.07em] mb-1.5';
 
+function formatCooldownTime(date) {
+  const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const sameDay = date.toDateString() === new Date().toDateString();
+  return sameDay ? time : `${date.toLocaleDateString('pt-BR')} ${time}`;
+}
+
 export default function AddRefuel() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -45,8 +51,17 @@ export default function AddRefuel() {
   const [locationStatus, setLocationStatus] = useState('checking'); // checking | ok | far | denied
   const [distanceM, setDistanceM] = useState(null);
 
+  // Checagem prévia do cooldown anti-fraude (3h entre abastecimentos no mesmo
+  // posto) — bloqueia a tela inteira antes de mostrar o formulário, em vez de
+  // deixar preencher tudo pra só descobrir no submit.
+  // undefined = checando | null = livre | Date = bloqueado até essa hora
+  const [cooldown, setCooldown] = useState(undefined);
+
   useEffect(() => {
     api.get(`/stations/${id}`).then(({ data }) => setStation(data)).catch(() => navigate('/'));
+    api.get(`/stations/${id}/refuel-cooldown`)
+      .then(({ data }) => setCooldown(data.blocked ? new Date(data.available_at) : null))
+      .catch(() => setCooldown(null)); // falha na checagem não bloqueia — o servidor ainda aplica a regra no submit
   }, [id, navigate]);
 
   const checkLocation = useCallback((st) => {
@@ -65,8 +80,8 @@ export default function AddRefuel() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (station) checkLocation(station);
-  }, [station, checkLocation]);
+    if (station && cooldown === null) checkLocation(station);
+  }, [station, cooldown, checkLocation]);
 
   useEffect(() => {
     api.get('/vehicles/mine').then(({ data }) => {
@@ -201,7 +216,26 @@ export default function AddRefuel() {
         </div>
       )}
 
-      {station && locationStatus !== 'ok' && (
+      {station && cooldown === undefined && (
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-slate-400">Verificando abastecimentos recentes...</p>
+        </div>
+      )}
+
+      {station && cooldown && (
+        <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
+          <p className="text-3xl mb-3" aria-hidden="true">⏳</p>
+          <p className="text-slate-200 font-semibold mb-1">Você já abasteceu aqui recentemente</p>
+          <p className="text-sm text-slate-500 mb-5">
+            Para evitar registros duplicados, só dá pra registrar outro abastecimento
+            neste posto a partir de {formatCooldownTime(cooldown)}.
+          </p>
+          <Button size="md" variant="ghost" onClick={() => navigate('/')}>Voltar ao mapa</Button>
+        </div>
+      )}
+
+      {station && cooldown === null && locationStatus !== 'ok' && (
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
           {locationStatus === 'checking' && (
             <>
@@ -233,7 +267,7 @@ export default function AddRefuel() {
         </div>
       )}
 
-      {locationStatus === 'ok' && (
+      {cooldown === null && locationStatus === 'ok' && (
       <form onSubmit={handleSubmit} className="space-y-3">
         <ErrorMessage message={error} />
 

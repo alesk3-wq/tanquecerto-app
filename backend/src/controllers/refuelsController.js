@@ -89,6 +89,9 @@ async function myRefuels(req, res, next) {
 
 async function pendingReview(req, res, next) {
   try {
+    // Compara com r.created_at (instante real do registro), não r.refueled_at (só a
+    // data escolhida pelo usuário, sem hora) — mesma correção da elegibilidade de
+    // avaliação, senão dois ciclos abastecer→avaliar no mesmo dia se atropelam.
     const [[pending]] = await db.query(
       `SELECT r.id, r.station_id, s.name AS station_name, r.fuel_type, r.refueled_at
        FROM refuels r
@@ -98,7 +101,7 @@ async function pendingReview(req, res, next) {
          AND NOT EXISTS (
            SELECT 1 FROM reports rep
            WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
-             AND rep.created_at >= r.refueled_at
+             AND rep.created_at >= r.created_at
          )
        ORDER BY r.refueled_at ASC
        LIMIT 1`,
@@ -110,4 +113,4 @@ async function pendingReview(req, res, next) {
   }
 }
 
-module.exports = { create, myRefuels, pendingReview };
+module.exports = { create, myRefuels, pendingReview, MIN_HOURS_BETWEEN_REFUELS };

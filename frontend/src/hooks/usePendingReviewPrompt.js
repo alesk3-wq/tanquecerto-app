@@ -19,8 +19,9 @@ function markShownToday(refuelId) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
-// Só é considerado depois que o prompt "Você está abastecendo?" já foi respondido/fechado
-// nesta montagem da Home (controlado pelo `enabled` vindo de fora).
+// `enabled` vem de fora (Home só liga quando há sessão ativa) — mantido como
+// parâmetro separado do `user` porque já existiu um gate prévio aqui (prompt
+// de abastecimento, removido) e pode voltar a existir um no futuro.
 export default function usePendingReviewPrompt({ user, enabled }) {
   const [step, setStep] = useState('closed');
   const [pending, setPending] = useState(null);

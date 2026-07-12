@@ -7,17 +7,19 @@ import StationCard from '../components/StationCard';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import MapTileLayer from '../components/map/MapTileLayer';
-import RefuelCheckPrompt from '../components/RefuelCheckPrompt';
 import PendingReviewPrompt from '../components/PendingReviewPrompt';
-import useRefuelPrompt from '../hooks/useRefuelPrompt';
+import Button from '../components/Button';
 import usePendingReviewPrompt from '../hooks/usePendingReviewPrompt';
 import { useAuth } from '../contexts/AuthContext';
-import { DEFAULT_CENTER } from '../constants/map';
+import { DEFAULT_CENTER, REFUEL_CHECK_RADIUS_KM } from '../constants/map';
 import { repColor } from '../constants/reputation';
+import { haversineKm } from '../lib/distance';
+import { openRoute } from '../lib/directions';
 
-function openRoute(userPos, station) {
-  const url = `https://www.google.com/maps/dir/?api=1&origin=${userPos.lat},${userPos.lng}&destination=${station.latitude},${station.longitude}&travelmode=driving`;
-  window.open(url, '_blank', 'noopener,noreferrer');
+// Mesmo raio/fórmula do gate de GPS em AddRefuel.jsx — "estar no posto"
+// significa a mesma coisa em todo o app.
+function isAtStation(pos, station) {
+  return !!pos && haversineKm(pos.lat, pos.lng, parseFloat(station.latitude), parseFloat(station.longitude)) <= REFUEL_CHECK_RADIUS_KM;
 }
 
 function createMarkerIcon(reputation) {
@@ -65,6 +67,21 @@ function cachedPosition() {
   return cached ? JSON.parse(cached) : null;
 }
 
+// Ao selecionar um posto na lista, centraliza o mapa nele e abre o popup do
+// marcador correspondente — mesmo padrão do LocateUser (child do MapContainer
+// usando useMap()).
+function MapFlyTo({ station, markerRefs }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!station) return;
+    map.flyTo([parseFloat(station.latitude), parseFloat(station.longitude)], 16);
+    markerRefs.current[station.id]?.openPopup();
+  }, [station, map, markerRefs]);
+
+  return null;
+}
+
 export default function Home() {
   const [stations, setStations] = useState([]);
   // Posição cacheada no localStorage (fix: recarrega ao voltar para Home)
@@ -75,6 +92,8 @@ export default function Home() {
   const [gpsRetry, setGpsRetry] = useState(0);
   const [radius, setRadius] = useState(5);
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+  const markerRefs = useRef({});
 
   // Filtro client-side por nome/bandeira — vale pra lista e pros marcadores do mapa
   const visibleStations = search.trim()
@@ -89,11 +108,16 @@ export default function Home() {
     setGpsRetry((n) => n + 1);
   }
 
-  const refuelPrompt = useRefuelPrompt({ user, userPos, gpsError, retryLocate });
-  const pendingReviewPrompt = usePendingReviewPrompt({
-    user,
-    enabled: refuelPrompt.askedOnce && refuelPrompt.step === 'closed',
-  });
+  const pendingReviewPrompt = usePendingReviewPrompt({ user, enabled: !!user });
+
+  // Posto onde o GPS confirma que o usuário está fisicamente agora — alimenta o
+  // botão flutuante "Abastecer" e o botão do popup do marcador. Usa `stations`
+  // (não `visibleStations`): presença física não depende do filtro de busca.
+  const stationAtLocation = userPos ? stations.find((s) => isAtStation(userPos, s)) : null;
+
+  // Posto selecionado na lista "Postos próximos" — alimenta o MapFlyTo (expande
+  // no mapa) e o botão de rota no card correspondente.
+  const selectedStation = stations.find((s) => s.id === selectedId) ?? null;
 
   // setState só após o await — o "loading" é ligado por quem chama (evento) ou pelo estado inicial
   const loadNear = useCallback(async (lat, lng, r) => {
@@ -141,11 +165,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-full">
-      {pendingReviewPrompt.step === 'ask' ? (
-        <PendingReviewPrompt {...pendingReviewPrompt} />
-      ) : (
-        <RefuelCheckPrompt {...refuelPrompt} />
-      )}
+      {pendingReviewPrompt.step === 'ask' && <PendingReviewPrompt {...pendingReviewPrompt} />}
 
       {/* Map */}
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
@@ -156,6 +176,7 @@ export default function Home() {
         >
           <MapTileLayer />
           <LocateUser key={gpsRetry} onLocation={handleLocation} onError={handleLocationError} />
+          <MapFlyTo station={selectedStation} markerRefs={markerRefs} />
 
           {/* Marcador do usuário */}
           {userPos && (
@@ -169,6 +190,7 @@ export default function Home() {
           {visibleStations.map((s) => (
             <Marker
               key={s.id}
+              ref={(el) => { if (el) markerRefs.current[s.id] = el; }}
               position={[parseFloat(s.latitude), parseFloat(s.longitude)]}
               icon={createMarkerIcon(s.reputation)}
             >
@@ -194,10 +216,10 @@ export default function Home() {
                     <div className="flex flex-col gap-2.5">
                       {userPos && (
                         <button
-                          onClick={() => openRoute(userPos, s)}
+                          onClick={() => (isAtStation(userPos, s) ? navigate(`/stations/${s.id}/refuel`) : openRoute(userPos, s))}
                           className="w-full min-h-[40px] bg-rep-good text-navy-950 font-bold text-[13px] rounded-xl px-3 py-2.5 shadow-lg shadow-rep-good/20 cursor-pointer active:scale-[0.97] transition-transform"
                         >
-                          ⛽ Abastecer
+                          {isAtStation(userPos, s) ? '⛽ Abastecer' : '🧭 Como chegar'}
                         </button>
                       )}
                       <button
@@ -213,6 +235,24 @@ export default function Home() {
             </Marker>
           ))}
         </MapContainer>
+
+        {/* Botão flutuante — só aparece quando o GPS confirma que o usuário
+            está fisicamente num posto cadastrado (mesmo raio do gate de
+            abastecimento). Substitui o antigo prompt de tela cheia "Você
+            está abastecendo?" por um sinal ambiente, sem interromper quem
+            não está em posto nenhum. */}
+        {user && stationAtLocation && (
+          <div className="absolute right-4 bottom-16 z-[1001]">
+            <Button
+              variant="neon"
+              size="md"
+              className="shadow-xl"
+              onClick={() => navigate(`/stations/${stationAtLocation.id}/refuel`)}
+            >
+              ⛽ Abastecer
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Bottom panel — bottom sheet flutuante, estilo app de navegação */}
@@ -293,7 +333,16 @@ export default function Home() {
           )}
 
           <div className="space-y-3">
-            {!loading && visibleStations.map((s) => <StationCard key={s.id} station={s} />)}
+            {!loading && visibleStations.map((s) => (
+              <StationCard
+                key={s.id}
+                station={s}
+                selected={s.id === selectedId}
+                onSelect={(st) => setSelectedId(st.id)}
+                onRoute={(st) => openRoute(userPos, st)}
+                userPos={userPos}
+              />
+            ))}
             {!loading && stations.length > 0 && visibleStations.length === 0 && (
               <p className="text-center text-sm text-slate-500 py-6">
                 Nenhum posto encontrado para "{search.trim()}".

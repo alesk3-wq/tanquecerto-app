@@ -3,14 +3,16 @@ import ReputationBadge from './ReputationBadge';
 import StationStatusBadge from './StationStatusBadge';
 import { repColor } from '../constants/reputation';
 
-export default function StationCard({ station }) {
+export default function StationCard({ station, selected, onSelect, onRoute, userPos }) {
   const navigate = useNavigate();
   const accent = repColor(station.reputation);
 
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/stations/${station.id}`)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(station)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(station); }}
       className="relative block w-full text-left bg-navy-800 rounded-xl shadow-md shadow-black/20 cursor-pointer hover:bg-navy-750 hover:shadow-lg active:scale-[0.98] transition-all overflow-hidden"
       style={{ borderLeft: `4px solid ${accent}` }}
     >
@@ -51,7 +53,28 @@ export default function StationCard({ station }) {
             )}
           </span>
         </div>
+
+        {selected && (
+          <div className="flex gap-2 mt-3 pt-3 border-t border-navy-600">
+            {userPos && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRoute(station); }}
+                className="flex-1 min-h-[38px] bg-rep-good text-navy-950 font-bold text-[13px] rounded-lg px-3 cursor-pointer active:scale-[0.97] transition-transform"
+              >
+                🧭 Rota
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); navigate(`/stations/${station.id}`); }}
+              className="flex-1 min-h-[38px] bg-white/[0.04] border border-navy-600 text-slate-400 font-medium text-[13px] rounded-lg px-3 cursor-pointer active:scale-[0.97] transition-transform"
+            >
+              Ver detalhes →
+            </button>
+          </div>
+        )}
       </div>
-    </button>
+    </div>
   );
 }

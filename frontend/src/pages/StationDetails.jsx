@@ -395,16 +395,13 @@ export default function StationDetails() {
           </div>
         )}
 
-        {/* CTAs */}
-        {user ? (
-          <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>
-            ⛽ Abastecer
-          </Button>
-        ) : (
+        {/* Abastecer saiu daqui — já coberto no mapa (popup do marcador +
+            botão flutuante), sem duplicar a ação. */}
+        {!user && (
           <div className="bg-navy-800 rounded-xl border border-navy-600 p-4 text-center">
             <p className="text-sm text-slate-400">
               <Link to="/login" className="text-accent font-semibold hover:underline">Faça login</Link>
-              {' '}para abastecer e avaliar este posto
+              {' '}para favoritar e avaliar este posto
             </p>
           </div>
         )}

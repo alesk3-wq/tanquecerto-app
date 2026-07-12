@@ -1,7 +1,7 @@
 import Button from './Button';
 import ErrorMessage from './ErrorMessage';
 
-// Casco visual compartilhado pelos prompts de tela cheia (RefuelCheckPrompt, PendingReviewPrompt):
+// Casco visual compartilhado pelos prompts de tela cheia (PendingReviewPrompt, Install):
 // fundo preto full-bleed + ícone/título/desc central + botões grandes empilhados embaixo.
 export default function FullScreenPrompt({
   icon, title, desc, spinner, error,

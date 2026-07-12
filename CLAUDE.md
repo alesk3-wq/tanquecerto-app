@@ -95,7 +95,10 @@ Acesse: http://localhost:5173
 
 **Só avalia quem abasteceu** (evita falso positivo): `POST /api/reports` exige um
 abastecimento do usuário naquele posto **sem avaliação criada depois dele** (mesma
-condição do lembrete pendente — `NOT EXISTS report com created_at >= refuel.refueled_at`).
+condição do lembrete pendente — `NOT EXISTS report com created_at >= refuel.created_at`,
+compara com o instante do registro do abastecimento, não com a data escolhida pelo
+usuário — ver bug corrigido no changelog, comparar com `refueled_at` fazia dois ciclos
+abastecer→avaliar no mesmo dia se atropelarem).
 Avaliou → o refuel deixa de ser elegível, só libera abastecendo de novo; 2 abastecimentos
 sem avaliar contam como 1 avaliação. Inelegível → 403. O caminho na UI é abastecer →
 "Avaliar agora" (ou o lembrete de 2 dias); não há mais botão "Avaliar" solto nos detalhes.
@@ -113,7 +116,10 @@ servidor é reforço futuro no roadmap).
 **Cooldown anti-fraude**: `POST /api/refuels` recusa (429) se o mesmo usuário já
 registrou um abastecimento naquele posto nas últimas **3h** (`MIN_HOURS_BETWEEN_REFUELS`
 em `refuelsController`, ancorado em `created_at`). É por posto — abastecer em outro posto
-no período segue liberado.
+no período segue liberado. `GET /api/stations/:id/refuel-cooldown` checa a mesma regra
+**antes** de `AddRefuel.jsx` pedir GPS ou mostrar o formulário — bloqueado, mostra direto
+"você já abasteceu aqui recentemente, disponível às HH:MM", sem deixar preencher nada
+à toa (antes só descobria no submit, com erro fora da tela — ver changelog).
 
 **Sintomas de combustível (tags), sem texto livre**: o campo de comentário livre foi
 removido antes por risco de acusação infundada sem embasamento (coluna
@@ -183,6 +189,7 @@ GET  /api/health                 Healthcheck
 POST /api/refuels                 Registrar abastecimento (auth, vehicle_id opcional)
 GET  /api/refuels/mine            Meus abastecimentos, paginado (auth)
 GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houver (auth)
+GET  /api/stations/:id/refuel-cooldown  Checagem prévia do cooldown de 3h (auth)
 
 POST   /api/vehicles              Cadastrar veículo: brand/model/year/default_fuel_type (auth)
 GET    /api/vehicles/mine         Meus veículos (auth)
@@ -330,12 +337,46 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
 - [x] Lista de abastecimentos do Perfil mostra o carro usado (🚗 marca modelo)
       quando o abastecimento tem `vehicle_id` — `GET /refuels/mine` ganhou
       `LEFT JOIN vehicles`.
+- [x] Botão "Abastecer" do mapa fica inteligente: dentro do raio de GPS do posto
+      (mesmo `REFUEL_CHECK_RADIUS_KM`) vai direto pro abastecimento; fora do raio
+      abre o Google Maps com rota (`openRoute`, movido pra `lib/directions.js`,
+      compartilhado com o card da lista). **Substitui o prompt "Você está
+      abastecendo?"** (item acima — `useRefuelPrompt.js`/`RefuelCheckPrompt.jsx`
+      apagados) por um botão flutuante "⛽ Abastecer" que só aparece no mapa quando
+      o GPS confirma presença num posto cadastrado, sem interromper quem não está
+      em posto nenhum. Cadastro manual de posto continua pela aba de navegação; só
+      a sugestão automática de cadastrar saiu.
+- [x] Bloqueio de cooldown antes de abrir a tela de abastecimento — ver seção
+      "Sistema de reputação" (`GET /api/stations/:id/refuel-cooldown`).
+- [x] Bug corrigido: elegibilidade de avaliação comparava com `refueled_at` (só a
+      data, sem hora) em vez de `created_at` do abastecimento, em
+      `reportsController::create`, `stationsController::getReviewableRefuel` e
+      `refuelsController::pendingReview` — dois ciclos abastecer→avaliar no mesmo
+      posto no mesmo dia calendário se atropelavam (o segundo abastecimento nunca
+      ficava elegível, com a mensagem enganosa "precisa abastecer antes"). Corrigido
+      nos 3 lugares — ver seção "Sistema de reputação".
+- [x] Lista "Postos próximos" e mapa integrados: tocar um posto na lista centraliza
+      o mapa nele e abre o popup do marcador (`MapFlyTo`, mesmo padrão do
+      `LocateUser`, usa `markerRefs` pra chamar `.openPopup()`); o card selecionado
+      ganha botões "🧭 Rota" e "Ver detalhes →" inline — `StationCard` virou `div`
+      clicável (`role="button"`) em vez de `<button>`, pra comportar botões
+      aninhados (mesmo padrão já usado nos favoritos do Perfil). Com abastecer e
+      rota cobertos pelo mapa, o botão "⛽ Abastecer" saiu de "Ver detalhes"
+      completamente — em qualquer caminho de entrada (mapa, lista, Perfil).
+- [x] Rate limiting em `/api/auth/login` (10 tentativas/15min) e
+      `/api/auth/register` (5/1h), por IP (`express-rate-limit`,
+      `backend/src/middlewares/authRateLimit.js`), resposta no mesmo formato
+      `{ error }` dos outros 429 do app. `app.set('trust proxy', 'loopback')`
+      adicionado — necessário pro rate limit enxergar o IP real do cliente quando
+      o `tailscale serve` for ativado (hoje o acesso é direto pelo IP do Tailscale,
+      sem proxy no meio).
 
-**Estado em 2026-07-11: tudo implementado, buildado e publicado em produção
-(backend reiniciado), ainda não commitado nesta sessão.** Próximo passo combinado
-com o usuário: continuar melhorando visualmente as telas de cadastro/formulário
-aos poucos (ele vai apontando ajustes conforme usa — não é pra fazer uma
-repaginada grande de uma vez).
+**Estado em 2026-07-12: tudo implementado, testado e publicado em produção,
+commitado e enviado ao GitHub.** Próximo passo combinado com o usuário: continuar
+melhorando visualmente as telas de cadastro/formulário aos poucos (ele vai
+apontando ajustes conforme usa — não é pra fazer uma repaginada grande de uma
+vez); próxima melhoria de risco/produto a decidir entre backup automático do
+banco e validação server-side de presença no abastecimento.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -357,8 +398,6 @@ O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
   A base técnica já existe (flag `full_tank` + mínimo de 3 medições).
 - **Backup automático do banco** (recomendado, ainda não feito): mysqldump diário
   via cron com rotação — hoje não existe backup nenhum e há usuários reais.
-- **Rate limiting** no login/registro (recomendado, ainda não feito): sem proteção
-  contra força bruta hoje.
 - **Validação server-side de presença no abastecimento** (reforço futuro): hoje o gate
   de "estar no posto" (GPS ≤ 200m) é só no frontend. O POST /refuels poderia receber a
   coordenada e recusar se longe do posto — ainda burlável via GPS falso, mas camada extra.

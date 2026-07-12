@@ -7,6 +7,12 @@ const errorHandler = require('./src/middlewares/errorHandler');
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Só confia em X-Forwarded-For vindo do próprio localhost — necessário pro rate
+// limit (authRateLimit) enxergar o IP real do cliente quando o tailscale serve
+// estiver ativo (proxy local); não abre brecha de spoofing porque só localhost
+// é confiado.
+app.set('trust proxy', 'loopback');
+
 // Em produção o Express serve o frontend (mesma origem) — CORS só é útil em dev,
 // para testes diretos contra a porta 3000.
 if (!isProduction) app.use(cors());

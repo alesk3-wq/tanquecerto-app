@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
+const { MEASUREMENTS_CTE, MIN_MEASUREMENTS } = require('../services/consumptionService');
 
 async function create(req, res, next) {
   try {
@@ -42,7 +43,33 @@ async function myVehicles(req, res, next) {
        ORDER BY v.is_default DESC, v.created_at DESC, v.id DESC`,
       [req.user.id]
     );
-    res.json(rows.map((v) => ({ ...v, is_default: !!v.is_default })));
+
+    // Consumo médio pessoal por veículo — soma medidas de TODOS os postos
+    // onde o carro abasteceu (não só um), histórico do próprio dono, sem
+    // exigir usuários diferentes (ver consumptionService.js).
+    const consumptionByVehicle = {};
+    if (rows.length) {
+      const ids = rows.map((v) => v.id);
+      const [measurements] = await db.query(
+        MEASUREMENTS_CTE +
+        `SELECT m.vehicle_id, m.fuel_type,
+                ROUND(AVG(m.consumption), 1) AS avg_consumption, COUNT(*) AS samples
+         FROM measurements m
+         WHERE m.vehicle_id IN (?) AND m.consumption BETWEEN 1 AND 40
+         GROUP BY m.vehicle_id, m.fuel_type
+         HAVING COUNT(*) >= ?`,
+        [ids, MIN_MEASUREMENTS]
+      );
+      for (const m of measurements) {
+        (consumptionByVehicle[m.vehicle_id] ??= []).push({
+          fuel_type: m.fuel_type, avg_consumption: m.avg_consumption, samples: m.samples,
+        });
+      }
+    }
+
+    res.json(rows.map((v) => ({
+      ...v, is_default: !!v.is_default, consumption: consumptionByVehicle[v.id] ?? [],
+    })));
   } catch (err) {
     next(err);
   }

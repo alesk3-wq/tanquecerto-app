@@ -4,6 +4,7 @@ const { haversineDistance } = require('../utils/distance');
 const { buildStats } = require('../services/reputationService');
 const { computeStationStatus, daysSince, MIN_STATION_FLAGS } = require('../services/stationStatusService');
 const { MIN_HOURS_BETWEEN_REFUELS } = require('./refuelsController');
+const { MEASUREMENTS_CTE, MIN_DISTINCT_USERS } = require('../services/consumptionService');
 
 async function create(req, res, next) {
   try {
@@ -302,40 +303,22 @@ async function getVehicleStats(req, res, next) {
     const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
 
-    // Só pares de abastecimentos de TANQUE CHEIO contam (e sem parcial no meio):
-    // a conta (km seguinte - km) / litros do seguinte só mede o consumo real se o
-    // tanque estava cheio nos dois pontos e nenhum litro entrou entre eles.
+    // Só pares de abastecimentos de TANQUE CHEIO contam (e sem parcial no meio,
+    // em qualquer posto — ver MEASUREMENTS_CTE em consumptionService.js). A
+    // média pública do posto exige usuários DIFERENTES (MIN_DISTINCT_USERS),
+    // não só várias medições — senão o hábito de uma pessoa só definiria a
+    // média pública.
     const [rows] = await db.query(
-      `WITH ordered AS (
-         SELECT r.station_id, r.fuel_type, r.vehicle_id, r.km, r.liters,
-                r.refueled_at, r.created_at,
-                LEAD(r.km) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_km,
-                LEAD(r.liters) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_liters,
-                LEAD(r.refueled_at) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_refueled_at,
-                LEAD(r.created_at) OVER (PARTITION BY r.vehicle_id ORDER BY r.refueled_at, r.created_at) AS next_created_at
-         FROM refuels r
-         WHERE r.vehicle_id IS NOT NULL AND r.km IS NOT NULL AND r.full_tank = 1
-       ),
-       measurements AS (
-         SELECT o.station_id, o.fuel_type, o.vehicle_id, (o.next_km - o.km) / o.next_liters AS consumption
-         FROM ordered o
-         WHERE o.next_km IS NOT NULL AND o.next_liters IS NOT NULL AND o.next_km > o.km
-           AND NOT EXISTS (
-             SELECT 1 FROM refuels p
-             WHERE p.vehicle_id = o.vehicle_id AND p.full_tank = 0
-               AND (p.refueled_at, p.created_at) > (o.refueled_at, o.created_at)
-               AND (p.refueled_at, p.created_at) < (o.next_refueled_at, o.next_created_at)
-           )
-       )
-       SELECT v.brand, v.model, v.year, m.fuel_type,
+      MEASUREMENTS_CTE +
+      `SELECT v.brand, v.model, v.year, m.fuel_type,
               ROUND(AVG(m.consumption), 1) AS avg_consumption, COUNT(*) AS samples
        FROM measurements m
        JOIN vehicles v ON v.id = m.vehicle_id
        WHERE m.station_id = ? AND m.consumption BETWEEN 1 AND 40
        GROUP BY v.brand, v.model, v.year, m.fuel_type
-       HAVING COUNT(*) >= 3
+       HAVING COUNT(DISTINCT m.user_id) >= ?
        ORDER BY v.brand, v.model, v.year`,
-      [req.params.id]
+      [req.params.id, MIN_DISTINCT_USERS]
     );
     res.json(rows);
   } catch (err) {

@@ -8,6 +8,8 @@ router.post(
   auth,
   [
     body('station_id').isInt({ min: 1 }),
+    body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude inválida.'),
+    body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude inválida.'),
     body('fuel_type').isIn(['gasoline', 'ethanol', 'diesel', 'gnv']),
     body('liters').isFloat({ min: 0.1 }),
     body('total_value').isFloat({ min: 0.01 }),

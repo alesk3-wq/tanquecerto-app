@@ -1,18 +1,29 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
+const { haversineDistance } = require('../utils/distance');
 
 // Anti-fraude: intervalo mínimo entre dois abastecimentos do mesmo usuário no mesmo posto
 const MIN_HOURS_BETWEEN_REFUELS = 3;
+
+// Mesmo raio usado no gate client-side de AddRefuel.jsx
+// (frontend/src/constants/map.js) — refaz a mesma conta aqui pra não confiar
+// só no que o cliente diz, sem pular a checagem pulando o frontend.
+const REFUEL_CHECK_RADIUS_KM = 0.2;
 
 async function create(req, res, next) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { station_id, vehicle_id, fuel_type, liters, total_value, km, full_tank, notes, refueled_at } = req.body;
+    const { station_id, vehicle_id, fuel_type, liters, total_value, km, full_tank, notes, refueled_at, latitude, longitude } = req.body;
 
-    const [[station]] = await db.query('SELECT id, name FROM stations WHERE id = ?', [station_id]);
+    const [[station]] = await db.query('SELECT id, name, latitude, longitude FROM stations WHERE id = ?', [station_id]);
     if (!station) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    const distance = haversineDistance(latitude, longitude, parseFloat(station.latitude), parseFloat(station.longitude));
+    if (distance > REFUEL_CHECK_RADIUS_KM) {
+      return res.status(403).json({ error: 'Você precisa estar no posto para registrar o abastecimento.' });
+    }
 
     // Cooldown: não deixa registrar dois abastecimentos no mesmo posto em poucas horas.
     // Ancorado em created_at (horário real do registro), não em refueled_at (data escolhida).
@@ -55,6 +66,12 @@ async function myRefuels(req, res, next) {
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
     const offset = (page - 1) * limit;
 
+    // Filtro opcional por carro (Perfil → aba Abastecimentos) — mesmo efeito
+    // nos totais (Total/Litros/Gasto), pra bater com a lista filtrada.
+    const vehicleId = parseInt(req.query.vehicle_id);
+    const vehicleFilter = Number.isInteger(vehicleId) ? 'AND r.vehicle_id = ?' : '';
+    const filterParams = vehicleFilter ? [req.user.id, vehicleId] : [req.user.id];
+
     const [rows] = await db.query(
       `SELECT r.id, r.fuel_type, r.liters, r.total_value, r.km, r.notes, r.refueled_at,
               ROUND(r.total_value / r.liters, 3) AS price_per_liter,
@@ -63,22 +80,22 @@ async function myRefuels(req, res, next) {
        FROM refuels r
        JOIN stations s ON s.id = r.station_id
        LEFT JOIN vehicles v ON v.id = r.vehicle_id
-       WHERE r.user_id = ?
+       WHERE r.user_id = ? ${vehicleFilter}
        ORDER BY r.refueled_at DESC, r.created_at DESC
        LIMIT ? OFFSET ?`,
-      [req.user.id, limit, offset]
+      [...filterParams, limit, offset]
     );
 
     const [[{ total }]] = await db.query(
-      'SELECT COUNT(*) AS total FROM refuels WHERE user_id = ?',
-      [req.user.id]
+      `SELECT COUNT(*) AS total FROM refuels r WHERE r.user_id = ? ${vehicleFilter}`,
+      filterParams
     );
 
     const [[sums]] = await db.query(
       `SELECT COALESCE(SUM(liters), 0) AS total_liters,
               COALESCE(SUM(total_value), 0) AS total_spent
-       FROM refuels WHERE user_id = ?`,
-      [req.user.id]
+       FROM refuels r WHERE r.user_id = ? ${vehicleFilter}`,
+      filterParams
     );
 
     res.json({ data: rows, page, limit, total, pages: Math.ceil(total / limit), ...sums });

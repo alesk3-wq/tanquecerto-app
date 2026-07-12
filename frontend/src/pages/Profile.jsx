@@ -16,7 +16,7 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tab, setTab] = useState(location.state?.tab ?? 'reports');
+  const [tab, setTab] = useState(location.state?.tab ?? 'refuels');
   const [reports, setReports]     = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -25,6 +25,8 @@ export default function Profile() {
 
   const [refuels, setRefuels]   = useState([]);
   const [refuelStats, setRefuelStats] = useState({ total: 0, total_liters: 0, total_spent: 0 });
+  const [refuelVehicleFilter, setRefuelVehicleFilter] = useState('');
+  const [refuelsLoading, setRefuelsLoading] = useState(false);
 
   const [vehicles, setVehicles]   = useState([]);
   const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '', default_fuel_type: '' });
@@ -54,6 +56,20 @@ export default function Profile() {
       setLoading(false);
     }
   }, []);
+
+  async function handleVehicleFilterChange(vehicleId) {
+    setRefuelVehicleFilter(vehicleId);
+    setRefuelsLoading(true);
+    try {
+      const { data } = await api.get('/refuels/mine', vehicleId ? { params: { vehicle_id: vehicleId } } : undefined);
+      setRefuels(data.data);
+      setRefuelStats({ total: data.total, total_liters: data.total_liters, total_spent: data.total_spent });
+    } catch {
+      setError('Não foi possível filtrar os abastecimentos.');
+    } finally {
+      setRefuelsLoading(false);
+    }
+  }
 
   function startEditVehicle(v) {
     setEditingVehicleId(v.id);
@@ -182,10 +198,10 @@ export default function Profile() {
       {/* Tabs */}
       <div className="flex overflow-x-auto border-b border-navy-600 px-4 mt-2">
         {[
-          { key: 'reports',   label: 'Avaliações',      count: reports.length },
-          { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: '⭐' },
           { key: 'refuels',   label: 'Abastecimentos',   count: refuelStats.total, icon: '⛽' },
+          { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: '⭐' },
           { key: 'vehicles',  label: 'Meus Carros',      count: vehicles.length,   icon: '🚗' },
+          { key: 'reports',   label: 'Avaliações',      count: reports.length },
         ].map((t) => (
           <button
             key={t.key}
@@ -255,6 +271,22 @@ export default function Profile() {
           {/* — TAB ABASTECIMENTOS — */}
           {tab === 'refuels' && (
             <>
+              {/* Filtro por carro */}
+              {vehicles.length > 0 && (
+                <select
+                  value={refuelVehicleFilter}
+                  onChange={(e) => handleVehicleFilterChange(e.target.value)}
+                  aria-label="Filtrar abastecimentos por carro"
+                  className="w-full bg-navy-800 border border-navy-600 text-slate-200 text-sm rounded-xl px-4 py-2.5 mb-3 focus:outline-none focus:border-accent/40 cursor-pointer"
+                >
+                  <option value="">Todos os carros</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.year})</option>
+                  ))}
+                </select>
+              )}
+
+              <div className={refuelsLoading ? 'opacity-60 pointer-events-none transition-opacity' : 'transition-opacity'}>
               {/* Totais */}
               {refuelStats.total > 0 && (
                 <div className="grid grid-cols-3 gap-3 mb-4">
@@ -264,7 +296,11 @@ export default function Profile() {
                 </div>
               )}
               {refuels.length === 0 ? (
-                <EmptyState icon="⛽" text="Nenhum abastecimento registrado." onExplore={() => navigate('/')} />
+                <EmptyState
+                  icon="⛽"
+                  text={refuelVehicleFilter ? 'Nenhum abastecimento registrado com esse carro.' : 'Nenhum abastecimento registrado.'}
+                  onExplore={() => navigate('/')}
+                />
               ) : (
                 <div className="space-y-3">
                   {refuels.map((r) => (
@@ -301,6 +337,7 @@ export default function Profile() {
                   ))}
                 </div>
               )}
+              </div>
             </>
           )}
 
@@ -424,6 +461,15 @@ export default function Profile() {
                             </p>
                             {v.default_fuel_type && (
                               <p className="text-xs text-slate-500 mt-0.5">⛽ {FUEL_LABELS[v.default_fuel_type]}</p>
+                            )}
+                            {v.consumption?.length > 0 && (
+                              <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-2">
+                                {v.consumption.map((c) => (
+                                  <span key={c.fuel_type}>
+                                    📊 {c.avg_consumption} km/l ({FUEL_LABELS[c.fuel_type]})
+                                  </span>
+                                ))}
+                              </p>
                             )}
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">

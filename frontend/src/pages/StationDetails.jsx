@@ -269,7 +269,12 @@ export default function StationDetails() {
           </div>
           {vehicleStats.length === 0 ? (
             <div className="px-4 py-5 text-center">
-              <p className="text-slate-500 text-sm">Ainda não há dados de consumo suficientes para este posto.</p>
+              <p className="text-slate-500 text-sm">Ainda não há consumo suficiente registrado aqui.</p>
+              <p className="text-slate-600 text-xs mt-1.5 px-4">
+                A média aparece depois que pelo menos 3 usuários diferentes
+                completarem o tanque aqui com o mesmo veículo (marcando "Completei
+                o tanque" ao abastecer).
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-navy-600">

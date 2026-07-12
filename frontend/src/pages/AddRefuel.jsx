@@ -4,9 +4,11 @@ import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
 import Button from '../components/Button';
+import OnboardingTip from '../components/OnboardingTip';
 import { FUEL_LABELS } from '../constants/fuels';
 import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
 import { haversineKm } from '../lib/distance';
+import useOnboardingTip from '../hooks/useOnboardingTip';
 
 const inputClass =
   'w-full bg-navy-950 border border-navy-600 rounded-[10px] px-3.5 py-[11px] text-slate-100 text-sm ' +
@@ -24,6 +26,7 @@ function formatCooldownTime(date) {
 export default function AddRefuel() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fullTankTip = useOnboardingTip('full_tank_rule');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -50,6 +53,9 @@ export default function AddRefuel() {
   // Só libera abastecer se o usuário estiver no posto (GPS a <= 200m)
   const [locationStatus, setLocationStatus] = useState('checking'); // checking | ok | far | denied
   const [distanceM, setDistanceM] = useState(null);
+  // Coordenadas cruas capturadas — enviadas no submit pro servidor refazer a
+  // mesma checagem de raio (reforço além do gate client-side).
+  const [position, setPosition] = useState(null);
 
   // Checagem prévia do cooldown anti-fraude (3h entre abastecimentos no mesmo
   // posto) — bloqueia a tela inteira antes de mostrar o formulário, em vez de
@@ -71,6 +77,7 @@ export default function AddRefuel() {
       (pos) => {
         const km = haversineKm(pos.coords.latitude, pos.coords.longitude, parseFloat(st.latitude), parseFloat(st.longitude));
         setDistanceM(Math.round(km * 1000));
+        setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocationStatus(km <= REFUEL_CHECK_RADIUS_KM ? 'ok' : 'far');
       },
       () => setLocationStatus('denied'),
@@ -159,6 +166,8 @@ export default function AddRefuel() {
         km:          form.km ? parseInt(form.km) : null,
         full_tank:   form.full_tank,
         notes:       form.notes || null,
+        latitude:    position?.lat,
+        longitude:   position?.lng,
       };
       await api.post('/refuels', payload);
       setSubmitted({ ...payload, price_per_liter: pricePerLiter, station_name: station?.name });
@@ -404,6 +413,14 @@ export default function AddRefuel() {
               </span>
             </span>
           </label>
+
+          {fullTankTip.show && (
+            <OnboardingTip onDismiss={fullTankTip.dismiss}>
+              Marque sempre que completar o tanque. Comparamos com o próximo
+              abastecimento de tanque cheio (pode ser em outro posto) pra calcular
+              o consumo médio (km/l) do seu carro.
+            </OnboardingTip>
+          )}
 
           {/* Observação */}
           <div>

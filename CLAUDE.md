@@ -110,8 +110,11 @@ avaliação só exibe posto/bandeira/data/combustível em leitura, sem seletor.
 **Abastecer só no posto**: `AddRefuel.jsx` pede a posição do usuário e só mostra o
 formulário se o GPS estiver a ≤ 200m do posto (`REFUEL_CHECK_RADIUS_KM`, haversine em
 `frontend/src/lib/distance.js`). Fora do raio / GPS negado → bloqueio com "Tentar
-novamente". Enforcement é **só frontend** por enquanto (GPS é client-asserted; validar no
-servidor é reforço futuro no roadmap).
+novamente". `POST /refuels` também valida **no servidor**: exige `latitude`/`longitude`
+no body e refaz a mesma conta (`haversineDistance`, `backend/src/utils/distance.js`)
+contra as coordenadas reais do posto no banco, recusando (403) se longe — fecha a
+brecha de pular o frontend e bater direto na API (GPS falso via navegador continua
+possível, é limite de qualquer app web).
 
 **Cooldown anti-fraude**: `POST /api/refuels` recusa (429) se o mesmo usuário já
 registrou um abastecimento naquele posto nas últimas **3h** (`MIN_HOURS_BETWEEN_REFUELS`
@@ -186,13 +189,14 @@ POST /api/stations/:id/flag      Sinalizar/desmarcar "este posto não existe" (a
 
 GET  /api/health                 Healthcheck
 
-POST /api/refuels                 Registrar abastecimento (auth, vehicle_id opcional)
-GET  /api/refuels/mine            Meus abastecimentos, paginado (auth)
+POST /api/refuels                 Registrar abastecimento (auth, vehicle_id opcional,
+                                   latitude/longitude obrigatórios)
+GET  /api/refuels/mine            Meus abastecimentos, paginado (auth, ?vehicle_id= filtra)
 GET  /api/refuels/pending-review  Abastecimento pendente de avaliação, se houver (auth)
 GET  /api/stations/:id/refuel-cooldown  Checagem prévia do cooldown de 3h (auth)
 
 POST   /api/vehicles              Cadastrar veículo: brand/model/year/default_fuel_type (auth)
-GET    /api/vehicles/mine         Meus veículos (auth)
+GET    /api/vehicles/mine         Meus veículos, com consumption[] por combustível (auth)
 PUT    /api/vehicles/:id          Editar veículo (auth, só o dono)
 PUT    /api/vehicles/:id/default  Definir como carro padrão (auth, desmarca os demais)
 DELETE /api/vehicles/:id          Remover veículo (auth, só o dono)
@@ -370,13 +374,48 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       adicionado — necessário pro rate limit enxergar o IP real do cliente quando
       o `tailscale serve` for ativado (hoje o acesso é direto pelo IP do Tailscale,
       sem proxy no meio).
+- [x] Backup automático do banco: `backend/scripts/backup-db.sh` (mysqldump
+      `--single-transaction`, senha via `--defaults-extra-file` temporário —
+      não aparece em `ps aux`), cron diário às 3h (`/etc/cron.d/tanquecerto-backup`,
+      fora do repo, roda como `alex` — o usuário real do systemd, `DEPLOY.md`
+      descreve um usuário `tanquecerto` dedicado que não existe de fato no
+      servidor) com rotação de 14 dias. Dumps em `/var/backups/tanquecerto/` —
+      fora de `/opt/tanquecerto` de propósito, fora da árvore do git como
+      proteção extra além do `.gitignore`. Só local por enquanto; cópia externa
+      (rclone/S3) fica pra quando houver destino definido.
+- [x] Validação server-side de GPS no abastecimento — ver seção "Sistema de
+      reputação".
+- [x] Onboarding do consumo médio (km/l): dica dispensável (💡, "vista uma vez
+      pra sempre" via localStorage, `useOnboardingTip.js` + `OnboardingTip.jsx`,
+      reaproveitável pra dicas futuras) perto do checkbox "Completei o tanque"
+      em `AddRefuel.jsx`, explicando que o abastecimento **seguinte** (em
+      qualquer posto, não precisa ser o mesmo) é o que fecha a conta do km/l.
+- [x] Consumo médio: pessoal por veículo (soma medidas de **todos** os postos
+      onde o carro abasteceu, não só um) exibido no Perfil → Meus Carros
+      (`GET /vehicles/mine` ganhou `consumption: [{fuel_type, avg_consumption,
+      samples}]`). A CTE de cálculo (pares de tanque-cheio consecutivos via
+      `LEAD()`, antes só dentro de `getVehicleStats`) foi extraída pra
+      `backend/src/services/consumptionService.js` (`MEASUREMENTS_CTE`),
+      compartilhada entre posto e pessoal. Média **pública do posto**
+      (`GET /stations/:id/vehicle-stats`) passa a exigir **3 usuários
+      diferentes** com o mesmo perfil de veículo
+      (`COUNT(DISTINCT user_id) >= MIN_DISTINCT_USERS`, era só `COUNT(*) >= 3`
+      medições que podiam ser todas da mesma pessoa) — evita que o hábito de um
+      usuário só defina a média pública do posto. Texto vazio de "Consumo médio
+      por veículo" em `StationDetails.jsx` atualizado pra explicar isso.
+- [x] Perfil: aba "Abastecimentos" passa a ser a primeira (e a padrão ao abrir
+      a tela), "Avaliações" vai pro final (era a primeira). Aba ganha filtro
+      por carro (`<select>`, "Todos os carros" + cada veículo) — filtra lista
+      **e** totais (Total/Litros/Gasto) via `GET /refuels/mine?vehicle_id=`, no
+      servidor (não só a página já carregada no navegador).
 
-**Estado em 2026-07-12: tudo implementado, testado e publicado em produção,
-commitado e enviado ao GitHub.** Próximo passo combinado com o usuário: continuar
-melhorando visualmente as telas de cadastro/formulário aos poucos (ele vai
-apontando ajustes conforme usa — não é pra fazer uma repaginada grande de uma
-vez); próxima melhoria de risco/produto a decidir entre backup automático do
-banco e validação server-side de presença no abastecimento.
+**Estado em 2026-07-12: tudo implementado, testado, publicado em produção,
+commitado e enviado ao GitHub.** Próximo passo combinado com o usuário:
+continuar melhorando visualmente as telas de cadastro/formulário aos poucos
+(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada
+grande de uma vez). Itens de risco do roadmap (backup, rate limiting,
+validação server-side de GPS) e o tutorial de onboarding combinados
+anteriormente estão todos feitos agora.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -392,15 +431,6 @@ O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
 
 ## Próximas features planejadas (roadmap)
 
-- **Tutorial de onboarding** (combinado com o usuário): cards de primeira visita
-  por tela ("coach marks"), ensinando principalmente a regra da média de consumo —
-  completar o tanque no mesmo posto pelo menos 2–3 vezes pro km/l aparecer.
-  A base técnica já existe (flag `full_tank` + mínimo de 3 medições).
-- **Backup automático do banco** (recomendado, ainda não feito): mysqldump diário
-  via cron com rotação — hoje não existe backup nenhum e há usuários reais.
-- **Validação server-side de presença no abastecimento** (reforço futuro): hoje o gate
-  de "estar no posto" (GPS ≤ 200m) é só no frontend. O POST /refuels poderia receber a
-  coordenada e recusar se longe do posto — ainda burlável via GPS falso, mas camada extra.
 - Fix do N+1 em `/stations/near` (uma query de reports por posto; os preços já
   foram feitos agrupados, falta a reputação).
 - Filtro por tipo de combustível no mapa

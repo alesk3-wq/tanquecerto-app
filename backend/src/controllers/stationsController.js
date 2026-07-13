@@ -81,18 +81,26 @@ async function findNear(req, res, next) {
     for (const s of stations) {
       const dist = haversineDistance(lat, lng, parseFloat(s.latitude), parseFloat(s.longitude));
       if (dist <= radius) {
-        const [reports] = await db.query(
-          'SELECT type FROM reports WHERE station_id = ? ORDER BY created_at DESC',
-          [s.id]
-        );
-        const { reputation, score } = buildStats(reports);
         const { created_at, ...rest } = s;
-        nearby.push({ ...rest, distance: Math.round(dist * 10) / 10, reputation, score, _ageDays: daysSince(created_at) });
+        nearby.push({ ...rest, distance: Math.round(dist * 10) / 10, _ageDays: daysSince(created_at) });
       }
     }
 
     if (nearby.length > 0) {
       const ids = nearby.map((s) => s.id);
+
+      // Reputação — uma query agrupada pro conjunto todo, não uma por posto (era o N+1)
+      const [allReports] = await db.query(
+        'SELECT station_id, type, created_at FROM reports WHERE station_id IN (?) ORDER BY station_id, created_at DESC',
+        [ids]
+      );
+      const reportsByStation = {};
+      for (const r of allReports) (reportsByStation[r.station_id] ??= []).push(r);
+      for (const s of nearby) {
+        const { reputation, score } = buildStats(reportsByStation[s.id] ?? []);
+        s.reputation = reputation;
+        s.score = score;
+      }
 
       // Preço da gasolina para o card (manual tem prioridade; senão média 15 dias) —
       // duas queries agrupadas para o conjunto todo, não uma por posto

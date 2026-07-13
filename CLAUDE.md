@@ -408,14 +408,20 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       por carro (`<select>`, "Todos os carros" + cada veículo) — filtra lista
       **e** totais (Total/Litros/Gasto) via `GET /refuels/mine?vehicle_id=`, no
       servidor (não só a página já carregada no navegador).
+- [x] Fix do N+1 em `GET /stations/near`: a reputação era a última consulta
+      por posto dentro do loop de distância (preço e status já tinham sido
+      agrupados antes) — agora uma query só (`station_id IN (ids)`, relatos
+      agrupados em JS antes de `buildStats`). A função passa de `1 + N + 2 + 2`
+      consultas pra uma quantidade constante de 6, não importa quantos postos
+      estejam no raio.
 
 **Estado em 2026-07-12: tudo implementado, testado, publicado em produção,
 commitado e enviado ao GitHub.** Próximo passo combinado com o usuário:
 continuar melhorando visualmente as telas de cadastro/formulário aos poucos
 (ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada
 grande de uma vez). Itens de risco do roadmap (backup, rate limiting,
-validação server-side de GPS) e o tutorial de onboarding combinados
-anteriormente estão todos feitos agora.
+validação server-side de GPS), o tutorial de onboarding e o fix do N+1
+combinados anteriormente estão todos feitos agora.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -431,8 +437,6 @@ O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
 
 ## Próximas features planejadas (roadmap)
 
-- Fix do N+1 em `/stations/near` (uma query de reports por posto; os preços já
-  foram feitos agrupados, falta a reputação).
 - Filtro por tipo de combustível no mapa
 - Notificações quando próximo de posto suspeito
 - Upload de fotos

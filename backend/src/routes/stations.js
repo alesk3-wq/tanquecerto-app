@@ -27,6 +27,10 @@ router.get('/:id/reviewable-refuel', auth, c.getReviewableRefuel);
 router.get('/:id/refuel-cooldown', auth, c.getRefuelCooldown);
 router.post('/:id/flag', auth, c.toggleFlag);
 
+router.get('/:id/reviewable-service-refuel', auth, c.getReviewableServiceRefuel);
+router.get('/:id/service-stats', c.getServiceStats);
+router.get('/:id/service-reviews', c.getServiceReviews);
+
 router.get('/:id/prices', prices.getPrices);
 router.post(
   '/:id/prices',

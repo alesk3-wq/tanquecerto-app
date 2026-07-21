@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
-import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
+import SuccessOverlay, { OverlayPrimaryButton } from '../components/SuccessOverlay';
 import Button from '../components/Button';
 import OnboardingTip from '../components/OnboardingTip';
+import ServiceReviewForm from '../components/ServiceReviewForm';
 import { FUEL_LABELS } from '../constants/fuels';
 import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
 import { haversineKm } from '../lib/distance';
@@ -34,6 +35,8 @@ export default function AddRefuel() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(null);
   const [error, setError]       = useState('');
+  // Avaliação de atendimento na tela de sucesso — 'form' | 'sent' | 'skipped'
+  const [serviceReviewStep, setServiceReviewStep] = useState('form');
   const [form, setForm]         = useState({
     vehicle_id:  '',
     fuel_type:   'gasoline',
@@ -169,8 +172,13 @@ export default function AddRefuel() {
         latitude:    position?.lat,
         longitude:   position?.lng,
       };
-      await api.post('/refuels', payload);
-      setSubmitted({ ...payload, price_per_liter: pricePerLiter, station_name: station?.name });
+      const { data } = await api.post('/refuels', payload);
+      setSubmitted({
+        ...payload, price_per_liter: pricePerLiter, station_name: station?.name,
+        trip_consumption: data.trip_consumption,
+        average_consumption: data.average_consumption,
+        average_samples: data.average_samples,
+      });
     } catch (err) {
       setError(err.response?.data?.error ?? err.response?.data?.errors?.[0]?.msg ?? 'Erro ao registrar.');
     } finally {
@@ -192,6 +200,10 @@ export default function AddRefuel() {
             ['Total', `R$ ${parseFloat(submitted.total_value).toFixed(2)}`],
             ['Preço/L', submitted.price_per_liter ? `R$ ${submitted.price_per_liter}` : '—'],
             submitted.km ? ['KM', submitted.km.toLocaleString('pt-BR')] : null,
+            submitted.trip_consumption ? ['Consumo neste trecho', `${submitted.trip_consumption} km/l`] : null,
+            submitted.average_consumption
+              ? ['Média do carro', `${submitted.average_consumption} km/l (${submitted.average_samples})`]
+              : null,
           ].filter(Boolean).map(([label, value]) => (
             <div key={label} className="flex justify-between mb-1.5 last:mb-0">
               <span className="text-slate-600 text-[13px]">{label}</span>
@@ -200,17 +212,42 @@ export default function AddRefuel() {
           ))}
         </div>
 
+        {/* Avaliação de combustível fica pro próximo abastecimento — só dá pra
+            sentir a qualidade depois de rodar com ele, mesma lógica do km/l.
+            O lembrete de avaliação pendente cobre isso, com dois gatilhos:
+            no seu próximo abastecimento (mesmo no mesmo dia, em outro posto,
+            comum em viagem) ou em 2–9 dias como fallback. */}
+        <div className="bg-navy-950 border border-navy-600 rounded-[14px] px-4 py-3.5 mb-6 flex items-start gap-2.5 text-left">
+          <span className="text-lg leading-none" aria-hidden="true">🔔</span>
+          <p className="text-slate-400 text-[13px] leading-relaxed">
+            Vamos te lembrar de avaliar o combustível deste posto no seu próximo
+            abastecimento (ou em alguns dias, se demorar).
+          </p>
+        </div>
+
+        {/* Atendimento dá pra julgar na hora, diferente de combustível — mas
+            continua opcional: quem pular aqui recebe o mesmo lembrete adiado
+            (unificado com o de combustível em usePendingReviewPrompt). */}
+        {serviceReviewStep === 'form' && (
+          <div className="mb-6">
+            <p className="font-medium text-slate-300 text-sm mb-3">Como foi o atendimento?</p>
+            <ServiceReviewForm
+              stationId={id}
+              onSubmitted={() => setServiceReviewStep('sent')}
+              onSkip={() => setServiceReviewStep('skipped')}
+            />
+          </div>
+        )}
+        {serviceReviewStep === 'sent' && (
+          <div className="bg-rep-good/10 border border-rep-good/30 rounded-[14px] px-4 py-3.5 mb-6 text-left">
+            <p className="text-rep-good text-[13px] font-medium">Valeu, avaliação de atendimento enviada! 🙌</p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
-          <OverlayPrimaryButton
-            onClick={() => navigate(`/stations/${id}/report`, {
-              state: { prefill: { fuel_type: submitted.fuel_type, refueled_at: submitted.refueled_at } },
-            })}
-          >
-            Avaliar agora →
+          <OverlayPrimaryButton onClick={() => navigate('/')}>
+            Ir para o mapa
           </OverlayPrimaryButton>
-          <OverlaySecondaryButton onClick={() => navigate('/')}>
-            Aguardar para testar o combustível
-          </OverlaySecondaryButton>
         </div>
       </SuccessOverlay>
     );

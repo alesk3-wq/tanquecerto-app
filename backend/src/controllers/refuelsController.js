@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
 const { haversineDistance } = require('../utils/distance');
+const { getLatestTripConsumption, getVehicleAverageConsumption } = require('../services/consumptionService');
 
 // Anti-fraude: intervalo mínimo entre dois abastecimentos do mesmo usuário no mesmo posto
 const MIN_HOURS_BETWEEN_REFUELS = 3;
@@ -54,7 +55,31 @@ async function create(req, res, next) {
       [req.user.id, vehicle_id || null, station_id, fuel_type, liters, total_value, km || null, full_tank === false ? 0 : 1, notes || null, refueled_at]
     );
 
-    res.status(201).json({ id: result.insertId, station_name: station.name, fuel_type, liters, total_value, refueled_at });
+    // Consumo pra mostrar na confirmação — só se houver veículo. O trecho
+    // (trip_consumption) só é buscado se ESTE abastecimento for de tanque
+    // cheio com KM, e só conta se ele mesmo fechou um par válido
+    // (closingRefuelId = result.insertId — não "o par mais recente por
+    // data", que podia devolver um intervalo antigo e enganoso).
+    let tripConsumption = null;
+    let averageConsumption = null;
+    let averageSamples = null;
+    if (vehicle_id) {
+      if (full_tank !== false && km) {
+        tripConsumption = await getLatestTripConsumption(vehicle_id, result.insertId);
+      }
+      const avg = await getVehicleAverageConsumption(vehicle_id, fuel_type);
+      if (avg) {
+        averageConsumption = avg.avg_consumption;
+        averageSamples = avg.samples;
+      }
+    }
+
+    res.status(201).json({
+      id: result.insertId, station_name: station.name, fuel_type, liters, total_value, refueled_at,
+      trip_consumption: tripConsumption,
+      average_consumption: averageConsumption,
+      average_samples: averageSamples,
+    });
   } catch (err) {
     next(err);
   }
@@ -104,25 +129,57 @@ async function myRefuels(req, res, next) {
   }
 }
 
+// Une candidatos de combustível (reports) e de atendimento (service_reviews) —
+// trilhas independentes, um mesmo abastecimento pode ter as duas pendentes,
+// uma só, ou nenhuma. Só UM lembrete de cada vez: o mais atrasado dos dois
+// (ORDER BY refueled_at ASC no conjunto unido), marcado com `kind` pro
+// frontend saber pra onde navegar. Compara com r.created_at (instante real do
+// registro), não r.refueled_at (só a data escolhida pelo usuário, sem hora) —
+// mesma correção da elegibilidade de avaliação, senão dois ciclos
+// abastecer→avaliar no mesmo dia se atropelam.
 async function pendingReview(req, res, next) {
   try {
-    // Compara com r.created_at (instante real do registro), não r.refueled_at (só a
-    // data escolhida pelo usuário, sem hora) — mesma correção da elegibilidade de
-    // avaliação, senão dois ciclos abastecer→avaliar no mesmo dia se atropelam.
     const [[pending]] = await db.query(
-      `SELECT r.id, r.station_id, s.name AS station_name, r.fuel_type, r.refueled_at
-       FROM refuels r
-       JOIN stations s ON s.id = r.station_id
-       WHERE r.user_id = ?
-         AND DATEDIFF(CURDATE(), r.refueled_at) BETWEEN 2 AND 9
-         AND NOT EXISTS (
-           SELECT 1 FROM reports rep
-           WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
-             AND rep.created_at >= r.created_at
-         )
-       ORDER BY r.refueled_at ASC
+      `SELECT id, station_id, station_name, fuel_type, refueled_at, kind FROM (
+         SELECT r.id, r.station_id, s.name AS station_name, r.fuel_type, r.refueled_at, 'fuel' AS kind
+         FROM refuels r
+         JOIN stations s ON s.id = r.station_id
+         WHERE r.user_id = ?
+           AND (
+             DATEDIFF(CURDATE(), r.refueled_at) BETWEEN 2 AND 9
+             OR EXISTS (
+               SELECT 1 FROM refuels later
+               WHERE later.user_id = r.user_id
+                 AND (later.refueled_at, later.created_at, later.id) > (r.refueled_at, r.created_at, r.id)
+             )
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM reports rep
+             WHERE rep.user_id = r.user_id AND rep.station_id = r.station_id
+               AND rep.created_at >= r.created_at
+           )
+         UNION ALL
+         SELECT r.id, r.station_id, s.name AS station_name, r.fuel_type, r.refueled_at, 'service' AS kind
+         FROM refuels r
+         JOIN stations s ON s.id = r.station_id
+         WHERE r.user_id = ?
+           AND (
+             DATEDIFF(CURDATE(), r.refueled_at) BETWEEN 2 AND 9
+             OR EXISTS (
+               SELECT 1 FROM refuels later
+               WHERE later.user_id = r.user_id
+                 AND (later.refueled_at, later.created_at, later.id) > (r.refueled_at, r.created_at, r.id)
+             )
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM service_reviews sr
+             WHERE sr.user_id = r.user_id AND sr.station_id = r.station_id
+               AND sr.created_at >= r.created_at
+           )
+       ) candidates
+       ORDER BY refueled_at ASC
        LIMIT 1`,
-      [req.user.id]
+      [req.user.id, req.user.id]
     );
     res.json(pending ?? null);
   } catch (err) {

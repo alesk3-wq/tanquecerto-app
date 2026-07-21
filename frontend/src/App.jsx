@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Install from './pages/Install';
 import StationDetails from './pages/StationDetails';
 import AddReport from './pages/AddReport';
+import AddServiceReview from './pages/AddServiceReview';
 import AddStation from './pages/AddStation';
 import AddRefuel from './pages/AddRefuel';
 import Profile from './pages/Profile';
@@ -48,6 +49,7 @@ export default function App() {
             {/* Rotas que exigem login */}
             <Route element={<ProtectedRoute />}>
               <Route path="/stations/:id/report" element={<AddReport />} />
+              <Route path="/stations/:id/service-review" element={<AddServiceReview />} />
               <Route path="/stations/:id/refuel" element={<AddRefuel />} />
               <Route path="/add-station"         element={<AddStation />} />
               <Route path="/profile"             element={<Profile />} />

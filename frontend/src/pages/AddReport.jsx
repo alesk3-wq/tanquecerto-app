@@ -9,7 +9,7 @@ import { repColor } from '../constants/reputation';
 import { REPORT_TAG_LABELS, REPORT_TAG_ORDER } from '../constants/reportTags';
 
 const TYPES = [
-  { value: 'good',    label: '✅ Positivo',  desc: 'Combustível de qualidade, bom atendimento',  border: 'border-rep-good/40',    bg: 'bg-rep-good/10'    },
+  { value: 'good',    label: '✅ Positivo',  desc: 'Combustível de qualidade, sem problemas',     border: 'border-rep-good/40',    bg: 'bg-rep-good/10'    },
   { value: 'suspect', label: '⚠️ Suspeito',  desc: 'Algo me deixou desconfiado',                 border: 'border-rep-suspect/40', bg: 'bg-rep-suspect/10' },
   { value: 'bad',     label: '❌ Negativo',   desc: 'Problema claro: adulteração, falha, etc.',   border: 'border-rep-bad/40',     bg: 'bg-rep-bad/10'     },
 ];
@@ -126,7 +126,7 @@ export default function AddReport() {
 
   return (
     <div className="max-w-lg mx-auto p-4 space-y-4">
-      <h1 className="text-xl font-bold text-slate-100">Avaliar posto</h1>
+      <h1 className="text-xl font-bold text-slate-100">Avaliar combustível</h1>
 
       {/* Abastecimento sendo avaliado (só leitura) */}
       <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
@@ -151,7 +151,7 @@ export default function AddReport() {
         <ErrorMessage message={error} />
 
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-4">
-          <p className="font-medium text-slate-300 mb-3">Sua experiência foi...</p>
+          <p className="font-medium text-slate-300 mb-3">Notou algo no combustível?</p>
           <div className="space-y-2">
             {TYPES.map((t) => (
               <label

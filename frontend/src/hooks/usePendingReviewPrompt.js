@@ -8,14 +8,16 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function alreadyShownToday(refuelId) {
+// Chave inclui `kind` — combustível e atendimento são lembretes independentes
+// pro mesmo abastecimento, dispensar um não pode dispensar o outro junto.
+function alreadyShownToday(kind, refuelId) {
   const map = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  return map[refuelId] === today();
+  return map[`${kind}_${refuelId}`] === today();
 }
 
-function markShownToday(refuelId) {
+function markShownToday(kind, refuelId) {
   const map = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  map[refuelId] = today();
+  map[`${kind}_${refuelId}`] = today();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
@@ -32,7 +34,7 @@ export default function usePendingReviewPrompt({ user, enabled }) {
     let cancelled = false;
     api.get('/refuels/pending-review').then(({ data }) => {
       if (cancelled || !data) return;
-      if (alreadyShownToday(data.id)) return;
+      if (alreadyShownToday(data.kind, data.id)) return;
       setPending(data);
       setStep('ask');
     }).catch(() => {});
@@ -40,14 +42,18 @@ export default function usePendingReviewPrompt({ user, enabled }) {
   }, [enabled, user]);
 
   function onYes() {
-    markShownToday(pending.id);
-    navigate(`/stations/${pending.station_id}/report`, {
-      state: { prefill: { fuel_type: pending.fuel_type, refueled_at: pending.refueled_at } },
-    });
+    markShownToday(pending.kind, pending.id);
+    if (pending.kind === 'service') {
+      navigate(`/stations/${pending.station_id}/service-review`);
+    } else {
+      navigate(`/stations/${pending.station_id}/report`, {
+        state: { prefill: { fuel_type: pending.fuel_type, refueled_at: pending.refueled_at } },
+      });
+    }
   }
 
   function onNo() {
-    markShownToday(pending.id);
+    markShownToday(pending.kind, pending.id);
     setStep('closed');
   }
 

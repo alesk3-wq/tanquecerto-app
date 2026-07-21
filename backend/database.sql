@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS stations (
   latitude DECIMAL(10,8) NOT NULL,
   longitude DECIMAL(11,8) NOT NULL,
   created_by INT NULL,
+  source ENUM('user', 'anp') NOT NULL DEFAULT 'user',
+  cnpj CHAR(14) NULL,
+  anp_codigo_simp VARCHAR(20) NULL,
+  anp_compliance_flag TINYINT(1) NULL,
+  anp_synced_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -74,6 +79,21 @@ CREATE TABLE IF NOT EXISTS refuels (
   FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
 );
 
+-- Avaliação de atendimento/estrutura/localização — trilha separada de
+-- combustível (reports), com texto livre (risco de acusação infundada é
+-- específico de adulteração de combustível, não se aplica aqui). Não entra
+-- na reputação do posto (station_status/reputationService).
+CREATE TABLE IF NOT EXISTS service_reviews (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  station_id INT NOT NULL,
+  sentiment ENUM('good', 'neutral', 'bad') NOT NULL,
+  comment TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS report_votes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
@@ -120,9 +140,15 @@ CREATE TABLE IF NOT EXISTS fuel_prices (
 
 -- Índice para acelerar busca por geolocalização
 CREATE INDEX idx_stations_location ON stations(latitude, longitude);
+-- Chave de upsert idempotente pra importação/resincronização com a ANP (aceita NULL, postos manuais não vinculados)
+CREATE UNIQUE INDEX uq_stations_anp_codigo_simp ON stations(anp_codigo_simp);
+-- Consulta futura por CNPJ (suporte/dedup)
+CREATE INDEX idx_stations_cnpj ON stations(cnpj);
 -- Índice para limitar 1 relato por usuário por dia
 CREATE INDEX idx_reports_user_station_date ON reports(user_id, station_id, created_at);
 -- Índice para achar o abastecimento anterior/seguinte do mesmo veículo (cálculo de consumo)
 CREATE INDEX idx_refuels_vehicle_date ON refuels(vehicle_id, refueled_at, created_at);
 -- Índice para contar rapidamente sinalizações por posto (quórum de "posto não existe")
 CREATE INDEX idx_station_flags_station ON station_flags(station_id);
+-- Índice para listar/agregar avaliações de atendimento por posto
+CREATE INDEX idx_service_reviews_station ON service_reviews(station_id);

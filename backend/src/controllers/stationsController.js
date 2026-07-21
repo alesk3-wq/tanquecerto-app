@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
-const { haversineDistance } = require('../utils/distance');
+const { haversineDistance, boundingBox } = require('../utils/distance');
 const { buildStats } = require('../services/reputationService');
 const { computeStationStatus, daysSince, MIN_STATION_FLAGS } = require('../services/stationStatusService');
 const { MIN_HOURS_BETWEEN_REFUELS } = require('./refuelsController');
@@ -73,8 +73,15 @@ async function findNear(req, res, next) {
       return res.status(400).json({ error: 'Parâmetros lat e lng são obrigatórios.' });
     }
 
+    // Filtro de bounding-box em SQL antes do haversine em JS — evita escanear
+    // a tabela inteira a cada refresh do mapa (crítico depois da importação
+    // nacional da ANP, ~46 mil linhas). O haversine abaixo ainda refina,
+    // cortando o excesso que sobra nos cantos do retângulo.
+    const { minLat, maxLat, minLng, maxLng } = boundingBox(lat, lng, radius);
     const [stations] = await db.query(
-      'SELECT id, name, brand, address, latitude, longitude, created_at FROM stations'
+      `SELECT id, name, brand, address, latitude, longitude, created_at FROM stations
+       WHERE latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?`,
+      [minLat, maxLat, minLng, maxLng]
     );
 
     const nearby = [];
@@ -169,6 +176,7 @@ async function getById(req, res, next) {
 
     const [rows] = await db.query(
       `SELECT s.id, s.name, s.brand, s.address, s.latitude, s.longitude, s.created_at,
+              s.anp_codigo_simp, s.anp_compliance_flag, s.anp_synced_at,
               EXISTS(SELECT 1 FROM refuels r WHERE r.station_id = s.id) AS has_refuel,
               (SELECT COUNT(*) FROM station_flags f WHERE f.station_id = s.id) AS flag_count,
               ${userFlaggedExpr}
@@ -187,7 +195,14 @@ async function getById(req, res, next) {
       flagCount: station.flag_count,
     });
 
-    res.json(station);
+    // Selo neutro de "registrado na ANP" — dado oficial, separado da
+    // reputação da comunidade (ver CLAUDE.md, seção de importação ANP).
+    const { anp_codigo_simp, anp_compliance_flag, anp_synced_at, ...rest } = station;
+    rest.anp = anp_codigo_simp
+      ? { registered: true, compliance_flag: !!anp_compliance_flag, synced_at: anp_synced_at }
+      : { registered: false };
+
+    res.json(rest);
   } catch (err) {
     next(err);
   }
@@ -282,7 +297,10 @@ async function getReports(req, res, next) {
 }
 
 // Resumo agregado de sintomas de combustível citados nas avaliações deste
-// posto. Só soma sintomas com 2+ menções: com 1 só, "resumo agregado" na
+// posto, separado por tipo de combustível — um posto que vende gasolina e
+// diesel pode ter um sintoma citado só por causa de um dos dois; misturar os
+// dois enganaria sobre qual combustível tem o problema. Só soma sintomas com
+// 2+ menções (por combinação tag+combustível): com 1 só, "resumo agregado" na
 // prática reexporia o sintoma daquele relato específico — o que contraria a
 // razão de ter escolhido resumo agregado em vez de tag por avaliação individual.
 async function getProblemTags(req, res, next) {
@@ -291,13 +309,13 @@ async function getProblemTags(req, res, next) {
     if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
 
     const [rows] = await db.query(
-      `SELECT rt.tag, COUNT(*) AS count
+      `SELECT rt.tag, r.fuel_type, COUNT(*) AS count
        FROM report_tags rt
        JOIN reports r ON r.id = rt.report_id
        WHERE r.station_id = ?
-       GROUP BY rt.tag
+       GROUP BY rt.tag, r.fuel_type
        HAVING count >= 2
-       ORDER BY count DESC`,
+       ORDER BY r.fuel_type, count DESC`,
       [req.params.id]
     );
     res.json(rows);
@@ -316,16 +334,19 @@ async function getVehicleStats(req, res, next) {
     // média pública do posto exige usuários DIFERENTES (MIN_DISTINCT_USERS),
     // não só várias medições — senão o hábito de uma pessoa só definiria a
     // média pública.
+    // Agrupa só por marca+modelo, sem ano — ano varia demais entre cadastros
+    // do "mesmo" carro (digitação, geração do modelo) e fragmentava grupos que
+    // já eram pequenos, impedindo a média de bater o mínimo de usuários.
     const [rows] = await db.query(
       MEASUREMENTS_CTE +
-      `SELECT v.brand, v.model, v.year, m.fuel_type,
+      `SELECT v.brand, v.model, m.fuel_type,
               ROUND(AVG(m.consumption), 1) AS avg_consumption, COUNT(*) AS samples
        FROM measurements m
        JOIN vehicles v ON v.id = m.vehicle_id
        WHERE m.station_id = ? AND m.consumption BETWEEN 1 AND 40
-       GROUP BY v.brand, v.model, v.year, m.fuel_type
+       GROUP BY v.brand, v.model, m.fuel_type
        HAVING COUNT(DISTINCT m.user_id) >= ?
-       ORDER BY v.brand, v.model, v.year`,
+       ORDER BY v.brand, v.model`,
       [req.params.id, MIN_DISTINCT_USERS]
     );
     res.json(rows);
@@ -361,6 +382,89 @@ async function getReviewableRefuel(req, res, next) {
   }
 }
 
+// Abastecimento elegível pra avaliação de ATENDIMENTO (trilha independente de
+// combustível/getReviewableRefuel — mesmo padrão, contra service_reviews em
+// vez de reports).
+async function getReviewableServiceRefuel(req, res, next) {
+  try {
+    const [[refuel]] = await db.query(
+      `SELECT s.name AS station_name, s.brand AS station_brand
+       FROM refuels r
+       JOIN stations s ON s.id = r.station_id
+       WHERE r.user_id = ? AND r.station_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM service_reviews sr
+           WHERE sr.user_id = r.user_id AND sr.station_id = r.station_id
+             AND sr.created_at >= r.created_at
+         )
+       ORDER BY r.refueled_at DESC, r.created_at DESC
+       LIMIT 1`,
+      [req.user.id, req.params.id]
+    );
+    res.json(refuel ?? null);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Veredito por maioria simples (não é score como a reputação de combustível —
+// atendimento é só informativo). Abaixo de MIN_SERVICE_REVIEWS, "sem dados
+// suficientes" (mesmo espírito do bucket unknown da reputação).
+const MIN_SERVICE_REVIEWS = 3;
+
+async function getServiceStats(req, res, next) {
+  try {
+    const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
+    if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    const [rows] = await db.query(
+      `SELECT sentiment, COUNT(*) AS count FROM service_reviews WHERE station_id = ? GROUP BY sentiment`,
+      [req.params.id]
+    );
+    const counts = { good: 0, neutral: 0, bad: 0 };
+    for (const r of rows) counts[r.sentiment] = r.count;
+    const total = counts.good + counts.neutral + counts.bad;
+
+    const sentiment = total >= MIN_SERVICE_REVIEWS
+      ? Object.keys(counts).reduce((a, b) => (counts[a] >= counts[b] ? a : b))
+      : 'unknown';
+
+    res.json({ sentiment, total, ...counts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Lista paginada COM o comentário inteiro — diferente de report_tags (só
+// resumo agregado), aqui o texto é exibido por completo mesmo.
+async function getServiceReviews(req, res, next) {
+  try {
+    const [station] = await db.query('SELECT id FROM stations WHERE id = ?', [req.params.id]);
+    if (!station.length) return res.status(404).json({ error: 'Posto não encontrado.' });
+
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(50, parseInt(req.query.limit) || 10);
+    const offset = (page - 1) * limit;
+
+    const [rows] = await db.query(
+      `SELECT id, sentiment, comment, created_at
+       FROM service_reviews
+       WHERE station_id = ?
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.params.id, limit, offset]
+    );
+    const [[{ total }]] = await db.query(
+      'SELECT COUNT(*) AS total FROM service_reviews WHERE station_id = ?',
+      [req.params.id]
+    );
+
+    res.json({ data: rows, page, limit, total, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Checagem prévia do cooldown anti-fraude (mesma regra de POST /refuels, sem
 // inserir nada) — deixa a tela de abastecimento bloquear antes de mostrar o
 // formulário, em vez de só descobrir no submit.
@@ -382,4 +486,8 @@ async function getRefuelCooldown(req, res, next) {
   }
 }
 
-module.exports = { create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel, toggleFlag, getProblemTags, getRefuelCooldown };
+module.exports = {
+  create, list, findNear, getById, getStats, getReports, getVehicleStats, getReviewableRefuel,
+  toggleFlag, getProblemTags, getRefuelCooldown,
+  getReviewableServiceRefuel, getServiceStats, getServiceReviews,
+};

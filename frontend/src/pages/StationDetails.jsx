@@ -11,10 +11,12 @@ import { REPORT_TAG_LABELS } from '../constants/reportTags';
 import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
 import { haversineKm } from '../lib/distance';
 
-const TYPE_CONFIG  = {
-  good:    { label: 'Positivo',  icon: '✅', color: 'text-rep-good',    bg: 'bg-rep-good/10',    border: 'border-rep-good/30'    },
-  suspect: { label: 'Suspeito', icon: '⚠️', color: 'text-rep-suspect', bg: 'bg-rep-suspect/10', border: 'border-rep-suspect/30' },
-  bad:     { label: 'Negativo', icon: '❌', color: 'text-rep-bad',     bg: 'bg-rep-bad/10',     border: 'border-rep-bad/30'     },
+// Sentimento de atendimento — trilha separada da reputação de combustível
+// (Total/Positivos/Suspeitos/Negativos no card de stats), nunca entra no score.
+const SERVICE_SENTIMENT_CONFIG = {
+  good:    { label: 'Bom',    icon: '🙂', color: 'text-rep-good',    bg: 'bg-rep-good/10',    border: 'border-rep-good/30'    },
+  neutral: { label: 'Neutro', icon: '😐', color: 'text-rep-suspect', bg: 'bg-rep-suspect/10', border: 'border-rep-suspect/30' },
+  bad:     { label: 'Ruim',   icon: '🙁', color: 'text-rep-bad',     bg: 'bg-rep-bad/10',     border: 'border-rep-bad/30'     },
 };
 const HERO_GRADIENT = {
   good:    'from-rep-good/20 to-navy-900',
@@ -40,10 +42,11 @@ export default function StationDetails() {
 
   const [station, setStation]   = useState(null);
   const [stats, setStats]       = useState(null);
-  const [reports, setReports]   = useState([]);
   const [prices, setPrices]     = useState([]);
   const [problemTags, setProblemTags] = useState([]);
   const [vehicleStats, setVehicleStats] = useState([]);
+  const [serviceStats, setServiceStats] = useState(null);
+  const [serviceReviews, setServiceReviews] = useState([]);
   const [favorited, setFavorited] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favError, setFavError] = useState('');
@@ -55,6 +58,9 @@ export default function StationDetails() {
   const [flagged, setFlagged]   = useState(false);
   const [flagBusy, setFlagBusy] = useState(false);
   const [flagError, setFlagError] = useState(false);
+  // Confirmação antes de marcar (não antes de desmarcar) — evita toque
+  // acidental virar sinalização, sem atrapalhar quem quer desfazer um erro.
+  const [confirmFlag, setConfirmFlag] = useState(false);
   const [nearStation, setNearStation] = useState(false);
 
   // Price form state
@@ -71,16 +77,14 @@ export default function StationDetails() {
   // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadStation = useCallback(async () => {
     try {
-      const [s, st, r, vs] = await Promise.all([
+      const [s, st, vs] = await Promise.all([
         api.get(`/stations/${id}`),
         api.get(`/stations/${id}/stats`),
-        api.get(`/stations/${id}/reports`),
         api.get(`/stations/${id}/vehicle-stats`),
       ]);
       setStation(s.data);
       setFlagged(!!s.data.user_flagged);
       setStats(st.data);
-      setReports(r.data.data);
       setVehicleStats(vs.data);
       setPageError('');
     } catch (err) {
@@ -103,6 +107,8 @@ export default function StationDetails() {
     // Requisições opcionais — não bloqueiam a página
     api.get(`/stations/${id}/prices`).then(({ data }) => setPrices(data)).catch(() => {});
     api.get(`/stations/${id}/problem-tags`).then(({ data }) => setProblemTags(data)).catch(() => {});
+    api.get(`/stations/${id}/service-stats`).then(({ data }) => setServiceStats(data)).catch(() => {});
+    api.get(`/stations/${id}/service-reviews`).then(({ data }) => setServiceReviews(data.data)).catch(() => {});
     if (user) {
       api.get(`/favorites/${id}`).then(({ data }) => setFavorited(data.favorited)).catch(() => {});
     }
@@ -139,6 +145,7 @@ export default function StationDetails() {
   async function toggleFlag() {
     if (!user) { navigate('/login'); return; }
     if (flagBusy) return;
+    setConfirmFlag(false);
     setFlagBusy(true);
     setFlagError(false);
     try {
@@ -149,6 +156,15 @@ export default function StationDetails() {
     } finally {
       setFlagBusy(false);
     }
+  }
+
+  // Toque no botão: se ainda não está marcado, pede confirmação primeiro
+  // (fácil de tocar sem querer). Desmarcar (corrigir um toque errado)
+  // continua direto, sem confirmação extra.
+  function handleFlagClick() {
+    if (!user) { navigate('/login'); return; }
+    if (flagged) { toggleFlag(); return; }
+    setConfirmFlag(true);
   }
 
   async function handlePriceSubmit(e) {
@@ -199,9 +215,26 @@ export default function StationDetails() {
             <h1 className="text-2xl font-bold text-slate-100 leading-tight">{station.name}</h1>
             {station.brand  && <p className="text-slate-400 mt-1 font-medium">{station.brand}</p>}
             {station.address && <p className="text-sm text-slate-500 mt-1">📍 {station.address}</p>}
+            {station.anp?.registered && (
+              <p className="text-xs text-slate-600 mt-1">
+                Registrado na ANP · {station.anp.compliance_flag
+                  ? 'pendência no monitoramento de qualidade'
+                  : 'situação regular'}
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
             {stats && <ReputationBadge reputation={rep} size="lg" />}
+            {serviceStats && serviceStats.sentiment !== 'unknown' && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full font-medium px-2 py-0.5 text-xs border
+                  ${SERVICE_SENTIMENT_CONFIG[serviceStats.sentiment].bg}
+                  ${SERVICE_SENTIMENT_CONFIG[serviceStats.sentiment].color}
+                  ${SERVICE_SENTIMENT_CONFIG[serviceStats.sentiment].border}`}
+              >
+                {SERVICE_SENTIMENT_CONFIG[serviceStats.sentiment].icon} Atendimento: {SERVICE_SENTIMENT_CONFIG[serviceStats.sentiment].label}
+              </span>
+            )}
             <StationStatusBadge status={station.station_status} />
             {/* Botão favorito */}
             <button
@@ -243,22 +276,31 @@ export default function StationDetails() {
         )}
 
         {/* Problemas mais citados — resumo agregado, nunca por avaliação
-            individual (só sintomas com 2+ menções, ver backend) */}
+            individual (só sintomas com 2+ menções por combustível, ver
+            backend). Separado por combustível: um sintoma só na gasolina não
+            deve parecer que é geral do posto. */}
         {problemTags.length > 0 && (
           <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">
             <div className="px-4 pt-4 pb-3 border-b border-navy-600">
               <h2 className="font-semibold text-slate-200">⚠️ Problemas mais citados</h2>
             </div>
-            <div className="divide-y divide-navy-600">
-              {problemTags.map((pt) => (
-                <div key={pt.tag} className="px-4 py-3 flex items-center justify-between gap-2">
-                  <p className="text-sm text-slate-300">{REPORT_TAG_LABELS[pt.tag] ?? pt.tag}</p>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rep-bad/10 text-rep-bad flex-shrink-0">
-                    {pt.count}
-                  </span>
+            {FUEL_ORDER.filter((fuel) => problemTags.some((pt) => pt.fuel_type === fuel)).map((fuel) => (
+              <div key={fuel} className="border-b border-navy-600 last:border-b-0">
+                <p className="px-4 pt-3 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {FUEL_LABELS[fuel]}
+                </p>
+                <div className="divide-y divide-navy-600">
+                  {problemTags.filter((pt) => pt.fuel_type === fuel).map((pt) => (
+                    <div key={`${pt.tag}-${pt.fuel_type}`} className="px-4 py-3 flex items-center justify-between gap-2">
+                      <p className="text-sm text-slate-300">{REPORT_TAG_LABELS[pt.tag] ?? pt.tag}</p>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rep-bad/10 text-rep-bad flex-shrink-0">
+                        {pt.count}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -279,16 +321,19 @@ export default function StationDetails() {
           ) : (
             <div className="divide-y divide-navy-600">
               {vehicleStats.map((v, i) => (
-                <div key={i} className="px-4 py-3 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-200 truncate">
-                      {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {FUEL_LABELS[v.fuel_type] ?? v.fuel_type} · {v.samples} abastecimento{v.samples > 1 ? 's' : ''}
-                    </p>
+                <div key={i} className="px-4 py-3.5">
+                  <p className="text-sm text-slate-300 leading-snug">
+                    Neste posto, o{' '}
+                    <span className="font-semibold text-slate-100">{v.brand} {v.model}</span>{' '}
+                    tem feito
+                  </p>
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    <span className="text-2xl font-bold text-accent">{v.avg_consumption}</span>
+                    <span className="text-sm text-slate-400">km/l de média</span>
                   </div>
-                  <p className="text-base font-bold text-accent whitespace-nowrap">{v.avg_consumption} km/l</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {FUEL_LABELS[v.fuel_type] ?? v.fuel_type} · {v.samples} abastecimento{v.samples > 1 ? 's' : ''}
+                  </p>
                 </div>
               ))}
             </div>
@@ -414,107 +459,78 @@ export default function StationDetails() {
         {/* Sinalizar posto inexistente — só aparece pra quem está fisicamente no local */}
         {user && nearStation && (
           <div>
-            <button
-              type="button"
-              onClick={toggleFlag}
-              disabled={flagBusy}
-              aria-pressed={flagged}
-              className={`w-full text-center text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors
-                ${flagged ? 'bg-rep-bad/10 border-rep-bad/30 text-rep-bad' : 'bg-transparent border-navy-600 text-slate-500 hover:text-rep-bad hover:border-rep-bad/30'}
-                ${flagBusy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              {flagged ? '🚩 Você reportou que este posto não existe' : '🚩 Não encontrei este posto aqui'}
-            </button>
+            {confirmFlag ? (
+              <div className="bg-rep-bad/10 border border-rep-bad/30 rounded-lg px-3.5 py-3 flex items-center justify-between gap-2">
+                <p className="text-xs text-rep-bad">
+                  Confirma que não encontrou este posto no endereço indicado?
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button type="button" onClick={() => setConfirmFlag(false)}
+                    className="text-xs font-semibold text-slate-400 border border-navy-600 rounded-lg px-3 py-1.5">
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={toggleFlag} disabled={flagBusy}
+                    className="text-xs font-semibold text-white bg-rep-bad rounded-lg px-3 py-1.5 disabled:opacity-60">
+                    Sim
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleFlagClick}
+                disabled={flagBusy}
+                aria-pressed={flagged}
+                className={`w-full text-center text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors
+                  ${flagged ? 'bg-rep-bad/10 border-rep-bad/30 text-rep-bad' : 'bg-transparent border-navy-600 text-slate-500 hover:text-rep-bad hover:border-rep-bad/30'}
+                  ${flagBusy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                {flagged ? '🚩 Você reportou que este posto não existe' : '🚩 Não encontrei este posto aqui'}
+              </button>
+            )}
             {flagError && <p className="text-xs text-rep-bad text-center mt-1.5">Falhou, tente de novo.</p>}
           </div>
         )}
 
-        {/* Relatos */}
+        {/* Atendimento e estrutura — trilha separada de combustível, com
+            texto livre (risco de acusação infundada é específico de
+            adulteração de combustível, não se aplica aqui). Não entra na
+            reputação do posto. */}
         <div>
           <h2 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
-            Avaliações
+            Atendimento e estrutura
             <span className="text-xs font-normal text-slate-500 bg-navy-600 px-2 py-0.5 rounded-full">
-              {stats?.total ?? 0}
+              {serviceReviews.length}
             </span>
           </h2>
 
-          {reports.length === 0 ? (
+          {serviceReviews.length === 0 ? (
             <div className="text-center py-10 bg-navy-800 rounded-2xl border border-dashed border-navy-600">
-              <p className="text-3xl mb-2" aria-hidden="true">🗳️</p>
-              <p className="text-slate-500 text-sm">Nenhuma avaliação ainda.</p>
-              {user && (
-                <p className="text-xs text-slate-600 mt-2 px-6">
-                  Abasteça aqui para poder avaliar este posto.
-                </p>
-              )}
+              <p className="text-3xl mb-2" aria-hidden="true">💬</p>
+              <p className="text-slate-500 text-sm">Nenhuma avaliação de atendimento ainda.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {reports.map((r) => {
-                const tc = TYPE_CONFIG[r.type] ?? TYPE_CONFIG.good;
+              {serviceReviews.map((sr) => {
+                const sc = SERVICE_SENTIMENT_CONFIG[sr.sentiment] ?? SERVICE_SENTIMENT_CONFIG.neutral;
                 return (
-                  <ReportCard key={r.id} report={r} tc={tc} user={user} />
+                  <div key={sr.id} className={`rounded-xl border p-4 ${sc.bg} ${sc.border}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-semibold ${sc.color}`}>{sc.icon} {sc.label}</span>
+                      <span className="text-xs text-slate-600">
+                        {new Date(sr.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {sr.comment && (
+                      <p className="text-sm text-slate-300 leading-relaxed mt-2 pt-2 border-t border-black/10">
+                        {sr.comment}
+                      </p>
+                    )}
+                  </div>
                 );
               })}
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReportCard({ report: r, tc, user }) {
-  const navigate = useNavigate();
-  const [voted, setVoted]   = useState(r.user_voted);
-  const [count, setCount]   = useState(Number(r.vote_count));
-  const [busy, setBusy]     = useState(false);
-  const [voteError, setVoteError] = useState(false);
-
-  async function handleVote(e) {
-    e.stopPropagation();
-    if (!user) { navigate('/login'); return; }
-    if (busy) return;
-    setBusy(true);
-    setVoteError(false);
-    try {
-      const { data } = await api.post(`/reports/${r.id}/vote`);
-      setVoted(data.voted);
-      setCount((c) => data.voted ? c + 1 : c - 1);
-    } catch {
-      setVoteError(true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className={`rounded-xl border p-4 ${tc.bg} ${tc.border}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className={`text-sm font-semibold ${tc.color}`}>{tc.icon} {tc.label}</span>
-        <span className="text-xs text-slate-500 bg-navy-950/50 px-2 py-0.5 rounded-full">
-          {FUEL_LABELS[r.fuel_type] ?? r.fuel_type}
-        </span>
-      </div>
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/10">
-        <p className="text-xs text-slate-600">
-          {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </p>
-        <div className="flex items-center gap-2">
-          {voteError && <span className="text-[11px] text-rep-bad">Falhou, tente de novo</span>}
-          <button
-            onClick={handleVote}
-            disabled={busy}
-            aria-pressed={voted}
-            aria-label="Marcar relato como útil"
-            title="Esse relato me ajudou"
-            className={`flex items-center gap-1.5 min-h-[36px] rounded-lg pl-2.5 pr-3 py-1.5 text-xs font-semibold border transition-all
-              ${voted ? 'bg-accent/15 border-accent/35 text-accent' : 'bg-white/5 border-white/10 text-rep-unknown'}
-              ${busy ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-          >
-            <span className="text-sm" aria-hidden="true">👍</span>
-            {count > 0 ? <span>{count}</span> : <span>Útil</span>}
-          </button>
         </div>
       </div>
     </div>

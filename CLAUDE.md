@@ -25,7 +25,8 @@ Plataforma colaborativa estilo "Waze dos postos de combustível". Motoristas ava
     services/reputationService  ← lógica good/suspect/bad/unknown
     middlewares/                ← auth (JWT), errorHandler
     routes/                     ← auth, stations, reports
-    utils/distance.js           ← fórmula Haversine
+    utils/distance.js           ← fórmula Haversine + bounding-box
+    scripts/                    ← backup-db.sh, import-anp-stations.js
 
 /frontend
   src/
@@ -164,6 +165,50 @@ active       caso contrário
   está dentro do raio de GPS do abastecimento (REFUEL_CHECK_RADIUS_KM), e o
   abastecimento continua liberado normalmente num posto flagged (um abastecimento
   real ali é contraevidência).
+
+## Postos importados da ANP
+
+Além de postos cadastrados por usuário, `stations` recebe uma importação
+nacional da API pública (sem autenticação, não documentada oficialmente)
+`GET https://revendedoresapi.anp.gov.br/v1/combustivel?numeroPagina=N`
+— registro de postos revendedores de todo o Brasil (~46 mil, 10 páginas de
+5.000). Script: `backend/scripts/import-anp-stations.js` (`npm run
+import:anp`), primeiro script Node do projeto (`backup-db.sh` é shell).
+
+Colunas novas em `stations`: `source ENUM('user','anp')` (discriminador —
+`created_by IS NULL` já significa "usuário deletado", não dava pra reusar),
+`cnpj`, `anp_codigo_simp` (UNIQUE, chave de upsert idempotente),
+`anp_compliance_flag` (NULL = nunca sincronizado, 0 = ok, 1 = pendência no
+Programa de Monitoramento da Qualidade dos Combustíveis — na prática quase
+sempre 0, escaneei mais de metade da base da ANP procurando um exemplo
+positivo e não achei nenhum), `anp_synced_at`.
+
+**Dedup contra posto já cadastrado por usuário** (pra nunca apagar e
+recriar — `stations.id` tem `ON DELETE CASCADE` em reports/refuels/
+service_reviews/station_flags/fuel_prices, perderia histórico real):
+1. Fast path: posto `source='user'` que já tem `anp_codigo_simp` de uma
+   sincronização anterior — casa direto pelo ID, sem recalcular distância.
+2. Sem isso, compara por Haversine contra postos `source='user'` ainda sem
+   vínculo, raio de 100m (mesmo raio do aviso de duplicata em
+   `AddStation.jsx`). Casou → `UPDATE` só nos campos da ANP, nunca em
+   `name`/`address`/`latitude`/`longitude`/`created_by`/`source`.
+3. Sem match nenhum → upsert em lote (`INSERT ... ON DUPLICATE KEY UPDATE`
+   por `anp_codigo_simp`), `source='anp'`, `created_by=NULL`.
+
+Não guarda `produtos[]` (lista de combustível do posto — já tem
+`fuel_prices`/`reports.fuel_type` fazendo esse papel) nem bairro/cep/
+município/uf como colunas separadas (viram uma string formatada só em
+`address`, igual ao que o geocoding via Nominatim já devolve).
+
+**Selo na tela de posto**: neutro, informativo, tom igual ao do endereço —
+de propósito **sem** cor de alerta (`StationDetails.jsx`), já que é dado
+oficial da ANP, não acusação da comunidade. Só aparece em
+`GET /api/stations/:id` (campo `anp: {registered, compliance_flag,
+synced_at}`), fora de `list`/`near` (endpoints de alto volume).
+
+**Resincronização**: `/etc/cron.d/tanquecerto-anp-sync`, mensal (dado da
+ANP muda pouco), roda como `alex`, log em `/var/log/tanquecerto/anp-sync.log`.
+Idempotente — seguro rodar de novo manualmente a qualquer momento.
 
 ## API — endpoints principais
 
@@ -413,7 +458,13 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       agrupados antes) — agora uma query só (`station_id IN (ids)`, relatos
       agrupados em JS antes de `buildStats`). A função passa de `1 + N + 2 + 2`
       consultas pra uma quantidade constante de 6, não importa quantos postos
-      estejam no raio.
+      estejam no raio. Adendo depois da importação da ANP: a query de
+      candidatos em si (antes do Haversine) ganhou filtro de bounding-box em
+      SQL (`backend/src/utils/distance.js::boundingBox`) — antes escaneava
+      `stations` inteira em todo refresh do mapa, inofensivo com poucos postos
+      manuais, inviável com ~46 mil postos nacionais na mesma tabela.
+- [x] Importação nacional de postos da ANP + selo de conformidade — ver seção
+      "Postos importados da ANP".
 
 **Estado em 2026-07-12: tudo implementado, testado, publicado em produção,
 commitado e enviado ao GitHub.** Próximo passo combinado com o usuário:

@@ -6,8 +6,26 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
+  email_verified_at TIMESTAMP NULL,
   phone VARCHAR(20) NULL,
+  cpf CHAR(11) NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tokens de uso único (recuperação de senha e confirmação de e-mail) — uma
+-- tabela reutilizável pras duas trilhas, em vez de duas tabelas parecidas.
+-- Guarda o hash do token (SHA-256), nunca o token em texto puro: o token cru
+-- só existe no link enviado por e-mail e na requisição de troca/confirmação,
+-- um vazamento do banco não permite forjar link nenhum.
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  type ENUM('password_reset', 'email_confirmation') NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS stations (
@@ -152,3 +170,5 @@ CREATE INDEX idx_refuels_vehicle_date ON refuels(vehicle_id, refueled_at, create
 CREATE INDEX idx_station_flags_station ON station_flags(station_id);
 -- Índice para listar/agregar avaliações de atendimento por posto
 CREATE INDEX idx_service_reviews_station ON service_reviews(station_id);
+-- Índice para invalidar tokens pendentes do mesmo tipo antes de emitir um novo
+CREATE INDEX idx_auth_tokens_user_type ON auth_tokens(user_id, type);

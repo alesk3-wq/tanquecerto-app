@@ -22,4 +22,23 @@ const registerLimiter = rateLimit({
   handler: handler('Muitas tentativas de cadastro. Tente novamente mais tarde.'),
 });
 
-module.exports = { loginLimiter, registerLimiter };
+// Spam de e-mail pra terceiro ou enumeração de conta: mesmo perfil do
+// registerLimiter, o risco aqui é mais parecido com abuso em massa do que
+// com usuário real errando a senha.
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: handler('Muitas solicitações. Tente novamente mais tarde.'),
+});
+
+const resendConfirmationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: handler('Muitas solicitações. Tente novamente mais tarde.'),
+});
+
+module.exports = { loginLimiter, registerLimiter, forgotPasswordLimiter, resendConfirmationLimiter };

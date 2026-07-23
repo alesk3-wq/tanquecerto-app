@@ -8,6 +8,9 @@ import AuthLayout, { AuthSubmitButton, authInputClass, authLabelClass } from '..
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [unverified, setUnverified] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -16,6 +19,8 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setUnverified(false);
+    setResendMessage('');
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', form);
@@ -23,8 +28,22 @@ export default function Login() {
       navigate(location.state?.from ?? '/');
     } catch (err) {
       setError(err.response?.data?.error ?? 'Erro ao fazer login.');
+      setUnverified(!!err.response?.data?.unverified);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResendLoading(true);
+    setResendMessage('');
+    try {
+      const { data } = await api.post('/auth/resend-confirmation', { email: form.email });
+      setResendMessage(data.message);
+    } catch {
+      setResendMessage('Erro ao reenviar. Tente novamente.');
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -39,6 +58,10 @@ export default function Login() {
             Cadastre-se grátis
           </Link>
           <br />
+          <Link to="/forgot-password" className="text-slate-600 hover:text-accent text-xs mt-2 inline-block">
+            Esqueci minha senha
+          </Link>
+          <br />
           <Link to="/instalar" className="text-slate-600 hover:text-accent text-xs mt-2 inline-block">
             📲 Instalar o app no celular
           </Link>
@@ -46,6 +69,21 @@ export default function Login() {
       }
     >
       <ErrorMessage message={error} className="mb-4" />
+
+      {unverified && (
+        resendMessage ? (
+          <p className="text-sm text-slate-300 leading-relaxed mb-4">{resendMessage}</p>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="text-xs text-accent hover:underline mb-4 block"
+          >
+            {resendLoading ? 'Enviando...' : 'Reenviar e-mail de confirmação'}
+          </button>
+        )
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>

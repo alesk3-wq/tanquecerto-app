@@ -1,25 +1,27 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
 import ErrorMessage from '../components/ErrorMessage';
 import AuthLayout, { AuthSubmitButton, authInputClass, authLabelClass } from '../layouts/AuthLayout';
+import { isValidCPF } from '../utils/cpf';
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', cpf: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [successMessage, setSuccessMessage] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (!isValidCPF(form.cpf)) {
+      setError('CPF inválido.');
+      return;
+    }
     setLoading(true);
     try {
       const { data } = await api.post('/auth/register', form);
-      login(data.token, data.user);
-      navigate('/');
+      setSuccessMessage(data.message);
     } catch (err) {
       const msg = err.response?.data?.error ?? err.response?.data?.errors?.[0]?.msg ?? 'Erro ao cadastrar.';
       setError(msg);
@@ -41,6 +43,10 @@ export default function Register() {
         </>
       }
     >
+      {successMessage ? (
+        <p className="text-sm text-slate-300 leading-relaxed">{successMessage}</p>
+      ) : (
+      <>
       <ErrorMessage message={error} className="mb-4" />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -81,6 +87,18 @@ export default function Register() {
         </div>
 
         <div>
+          <label htmlFor="reg-cpf" className={authLabelClass}>CPF</label>
+          <input
+            id="reg-cpf"
+            type="text" required
+            value={form.cpf}
+            onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+            placeholder="000.000.000-00"
+            className={authInputClass}
+          />
+        </div>
+
+        <div>
           <label htmlFor="reg-phone" className={authLabelClass}>
             Telefone <span className="text-slate-700 font-normal normal-case">(opcional)</span>
           </label>
@@ -98,6 +116,8 @@ export default function Register() {
           Criar conta →
         </AuthSubmitButton>
       </form>
+      </>
+      )}
     </AuthLayout>
   );
 }

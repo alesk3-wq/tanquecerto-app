@@ -89,6 +89,10 @@ DB_NAME=tanquecerto
 
 JWT_SECRET=COLE_AQUI_O_RESULTADO_DE:openssl rand -base64 48
 JWT_EXPIRES_IN=7d
+
+APP_BASE_URL=https://SEU-DOMINIO-OU-TAILNET-AQUI
+RESEND_API_KEY=re_xxx
+EMAIL_FROM="TanqueCerto <naoresponda@seudominio.com>"
 ```
 
 ```bash
@@ -97,6 +101,24 @@ chmod 600 .env   # só o dono lê
 
 > `HOST=127.0.0.1` evita expor a porta 3000 na rede local — o acesso externo
 > passa pelo `tailscale serve`, que conecta via localhost.
+
+### Configuração de e-mail transacional (Resend)
+
+`APP_BASE_URL` é só a URL pública onde o app é acessado (hoje a mesma URL
+HTTPS do Tailscale, seção 6; no dia de um domínio próprio, troca só esse
+valor, sem mudar código) — usada pra montar os links de confirmação de
+e-mail e recuperação de senha nos e-mails enviados.
+
+`RESEND_API_KEY`/`EMAIL_FROM` são do [Resend](https://resend.com),
+serviço de envio de e-mail transacional:
+1. Criar conta em resend.com.
+2. Adicionar e verificar o domínio de envio (registros DNS no domínio
+   escolhido) — sem isso, só envia pro próprio e-mail da conta Resend.
+3. Gerar uma API key e colar em `RESEND_API_KEY`.
+
+Sem `RESEND_API_KEY` configurada, o app não trava — só loga o e-mail no
+console em vez de enviar de verdade (`journalctl -u tanquecerto -f`), útil
+pra testar antes de fechar o domínio/provedor de e-mail.
 
 ## 4. Build do frontend
 

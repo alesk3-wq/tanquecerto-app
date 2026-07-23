@@ -79,6 +79,56 @@ npm run dev
 
 Acesse: http://localhost:5173
 
+## Cadastro: e-mail confirmado, recuperação de senha, CPF único
+
+O quórum de confiança do app (MIN_REPORTS, MIN_STATION_FLAGS,
+MIN_DISTINCT_USERS, MIN_SERVICE_REVIEWS — todos "N usuários distintos
+concordando") quebra fácil se uma pessoa só criar várias contas. Três
+reforços no cadastro, greenfield (nada disso existia antes):
+
+- **CPF único** (`users.cpf CHAR(11) UNIQUE`, `backend/src/utils/cpf.js` /
+  `frontend/src/utils/cpf.js`) — só valida dígito verificador (mod 11,
+  com guarda extra contra sequência repetida tipo `111.111.111-11`, que
+  passa no checksum cru mas não é CPF válido). É chave de unicidade, **não**
+  verificação de identidade (sem consulta paga na Receita Federal) — nunca
+  aparece em tela nenhuma, nem pro próprio dono. Obrigatório só pra
+  cadastro novo; contas existentes ficam com CPF NULL, sem retroatividade.
+- **E-mail confirmado obrigatório** (`users.email_verified_at TIMESTAMP
+  NULL` — nullable, não boolean, mesmo padrão de `anp_synced_at`/
+  `anp_compliance_flag`) — `register()` não loga mais automaticamente
+  (senão a trava vira decorativa), só manda e-mail de confirmação;
+  `login()` bloqueia com `403 { unverified: true }` até confirmar.
+- **Recuperação de senha** — mesmo mecanismo de token da confirmação de
+  e-mail (ver abaixo).
+
+**Tokens de uso único** (`auth_tokens`, `backend/src/services/tokenService.js`)
+— uma tabela reutilizável pras duas trilhas (`type ENUM('password_reset',
+'email_confirmation')`), token opaco (`crypto.randomBytes` + SHA-256, nunca
+texto puro no banco) em vez de JWT — precisa ser revogável antes da
+expiração natural (pedir de novo mata o token anterior), o que um JWT não
+faz sem uma lista de bloqueio à parte. Confirmação de e-mail é idempotente
+por design (duplo clique no link não dá erro, mesmo com o token já
+consumido) — diferente de reset de senha, que é estritamente uso único
+(replay de link de reset seria sensível, replay de confirmação não).
+
+`forgot-password`/`resend-confirmation` sempre respondem a mesma mensagem
+genérica, exista ou não a conta — proteção padrão contra enumeração de
+e-mail cadastrado. Rotas novas são todas `POST` (não GET com efeito
+colateral, pra um link de e-mail não ser "clicado" sozinho por
+scanner/prefetch antes do usuário abrir).
+
+**E-mail transacional via Resend** (`backend/src/services/emailService.js`)
+— `fetch` nativo, sem dependência nova (mesmo padrão do script de
+importação da ANP). Sem `RESEND_API_KEY`, loga o e-mail no console em vez
+de falhar — dá pra testar sem conta no Resend. Nova variável
+`APP_BASE_URL` usada só pra montar os links dos e-mails — a única coisa
+que precisa mudar pra migrar de host/domínio no futuro (ver DEPLOY.md).
+
+⚠️ **Cuidado de migração**: `email_verified_at` precisa de backfill
+(`UPDATE users SET email_verified_at = created_at WHERE email_verified_at
+IS NULL`) **antes** de subir o código do gate de login — senão todo
+usuário existente fica trancado fora da própria conta no deploy.
+
 ## Sistema de reputação
 
 | Tipo de relato | Pontos |
@@ -215,9 +265,13 @@ Idempotente — seguro rodar de novo manualmente a qualquer momento.
 Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
 
 ```
-POST /api/auth/register          Cadastro
-POST /api/auth/login             Login → retorna JWT
-GET  /api/auth/me                Usuário logado
+POST /api/auth/register             Cadastro (não loga — exige confirmar e-mail)
+POST /api/auth/login                Login → retorna JWT (403 se e-mail não confirmado)
+GET  /api/auth/me                   Usuário logado
+POST /api/auth/forgot-password      Pedir recuperação de senha (resposta genérica sempre)
+POST /api/auth/reset-password       Trocar senha via token do e-mail
+POST /api/auth/confirm-email        Confirmar e-mail via token (idempotente)
+POST /api/auth/resend-confirmation  Reenviar e-mail de confirmação (resposta genérica sempre)
 
 GET  /api/stations               Lista paginada
 POST /api/stations               Cadastrar posto (auth)
@@ -465,6 +519,9 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
       manuais, inviável com ~46 mil postos nacionais na mesma tabela.
 - [x] Importação nacional de postos da ANP + selo de conformidade — ver seção
       "Postos importados da ANP".
+- [x] E-mail confirmado obrigatório, recuperação de senha, CPF único no
+      cadastro — ver seção "Cadastro: e-mail confirmado, recuperação de
+      senha, CPF único".
 
 **Estado em 2026-07-12: tudo implementado, testado, publicado em produção,
 commitado e enviado ao GitHub.** Próximo passo combinado com o usuário:

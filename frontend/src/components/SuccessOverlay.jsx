@@ -4,7 +4,7 @@ import Button from './Button';
 // enviar avaliação e registrar abastecimento.
 export default function SuccessOverlay({ icon = '✅', iconTone = 'accent', title, children }) {
   const tones = {
-    accent: 'bg-accent/12 border-accent/35 shadow-[0_0_32px_rgba(245,158,11,0.12)]',
+    accent: 'bg-accent/12 border-accent/35 shadow-[0_0_32px_rgba(255,122,0,0.12)]',
     good:   'bg-rep-good/12 border-rep-good/30',
     warn:   'bg-rep-suspect/12 border-rep-suspect/35',
   };
@@ -21,7 +21,7 @@ export default function SuccessOverlay({ icon = '✅', iconTone = 'accent', titl
           {icon}
         </div>
         {title && (
-          <h2 className="text-slate-100 font-bold text-xl mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+          <h2 className="text-slate-100 font-bold text-xl mb-2" style={{ fontFamily: 'Poppins' }}>
             {title}
           </h2>
         )}

@@ -2,6 +2,7 @@ import { MapContainer } from 'react-leaflet';
 import '../lib/leafletSetup';
 import MapTileLayer from '../components/map/MapTileLayer';
 import Button from '../components/Button';
+import OctaIcon from '../assets/OctaIcon';
 
 // São Paulo — cenário do mapa decorativo das telas de auth
 const AUTH_MAP_CENTER = [-23.55, -46.63];
@@ -48,15 +49,15 @@ export default function AuthLayout({ subtitle, cardTitle, children, footer }) {
           <div className="text-center mb-8">
             <div
               aria-hidden="true"
-              className="w-16 h-16 rounded-[18px] bg-accent/12 border-[1.5px] border-accent/35 shadow-[0_0_40px_rgba(245,158,11,0.18)] flex items-center justify-center text-3xl mx-auto mb-4"
+              className="w-16 h-16 rounded-[18px] bg-accent/12 border-[1.5px] border-accent/35 shadow-[0_0_40px_rgba(255,122,0,0.18)] flex items-center justify-center mx-auto mb-4"
             >
-              ⛽
+              <OctaIcon size={32} />
             </div>
             <h1
               className="text-accent text-3xl font-bold tracking-tight"
-              style={{ fontFamily: 'Space Grotesk' }}
+              style={{ fontFamily: 'Poppins' }}
             >
-              TanqueCerto
+              Octa
             </h1>
             <p className="text-slate-600 text-sm mt-1.5">{subtitle}</p>
           </div>

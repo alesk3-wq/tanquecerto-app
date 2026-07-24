@@ -183,7 +183,7 @@ export default function Home() {
             <CircleMarker
               center={[userPos.lat, userPos.lng]}
               radius={8}
-              pathOptions={{ fillColor: '#f59e0b', fillOpacity: 1, color: '#060d1f', weight: 2 }}
+              pathOptions={{ fillColor: '#ff7a00', fillOpacity: 1, color: '#060d1f', weight: 2 }}
             />
           )}
 

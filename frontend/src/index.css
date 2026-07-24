@@ -9,8 +9,8 @@
   --color-navy-750: #0f2147; /* hover de card */
   --color-navy-600: #1a2d50; /* bordas */
   --color-navy-500: #2a4070; /* bordas hover */
-  --color-accent: #f59e0b;
-  --color-accent-dark: #d97706;
+  --color-accent: #ff7a00;
+  --color-accent-dark: #d96800;
   --color-rep-good: #00e676;
   --color-rep-suspect: #facc15;
   --color-rep-bad: #ef4444;
@@ -29,14 +29,14 @@
   }
 
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
     background: #060d1f;
     color: #f1f5f9;
     min-height: 100vh;
   }
 
   h1, h2, h3, h4 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
   }
 }
 

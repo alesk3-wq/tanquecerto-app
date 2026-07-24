@@ -170,11 +170,11 @@ export default function Profile() {
       <div className="relative overflow-hidden px-4 pt-6 pb-6"
         style={{ background: 'linear-gradient(160deg, #0d2246 0%, #0a1628 70%, #060d1f 100%)' }}>
         <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, #f59e0b 0%, transparent 50%)' }} />
+          style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, #ff7a00 0%, transparent 50%)' }} />
 
         <div className="relative z-10 flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-navy-950 shadow-lg shadow-accent/20 flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+            style={{ background: 'linear-gradient(135deg, #ff7a00, #d96800)' }}>
             {initial}
           </div>
           <div className="flex-1 min-w-0">

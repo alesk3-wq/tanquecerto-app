@@ -45,4 +45,4 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST; // ex: 127.0.0.1 em produção atrás do tailscale serve
-app.listen(PORT, HOST, () => console.log(`TanqueCerto API rodando na porta ${PORT}`));
+app.listen(PORT, HOST, () => console.log(`Octa API rodando na porta ${PORT}`));

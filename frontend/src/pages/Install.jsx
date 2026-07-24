@@ -68,14 +68,14 @@ export default function Install() {
   }
 
   return (
-    <AuthLayout subtitle="Instale o app no seu celular" cardTitle="Instalar TanqueCerto">
+    <AuthLayout subtitle="Instale o app no seu celular" cardTitle="Instalar Octa">
       {isStandalone && (
         <div className="text-center py-2">
           <div className="w-14 h-14 rounded-full bg-rep-good/15 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl" aria-hidden="true">✅</span>
           </div>
           <p className="text-slate-200 font-semibold mb-1">App já instalado!</p>
-          <p className="text-slate-500 text-sm mb-6">Você já está usando o TanqueCerto como aplicativo.</p>
+          <p className="text-slate-500 text-sm mb-6">Você já está usando o Octa como aplicativo.</p>
           <Button onClick={() => navigate('/')}>Ir para o mapa →</Button>
         </div>
       )}
@@ -102,7 +102,7 @@ export default function Install() {
           <Step n={1} title="Abra no Safari" desc="Esse recurso só funciona no Safari — não use Chrome ou outro navegador." />
           <Step n={2} title="Toque em Compartilhar" desc="O ícone de compartilhar fica na barra inferior do Safari." />
           <Step n={3} title='Toque em "Adicionar à Tela de Início"' desc="Role a lista de opções até encontrar e confirme." />
-          <Step n={4} title="Pronto!" desc="O ícone do TanqueCerto aparecerá na sua tela de início." />
+          <Step n={4} title="Pronto!" desc="O ícone do Octa aparecerá na sua tela de início." />
         </div>
       )}
 

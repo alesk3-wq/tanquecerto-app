@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { NAV, isNavItemActive } from '../constants/nav';
+import OctaIcon from '../assets/OctaIcon';
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -16,12 +17,12 @@ export default function Sidebar() {
     <aside className="sidebar hidden md:flex fixed inset-y-0 left-0 w-[280px] flex-col bg-navy-900 border-r border-navy-600">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-[60px] border-b border-navy-600 flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-base flex-shrink-0" aria-hidden="true">
-          ⛽
+        <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+          <OctaIcon size={16} />
         </div>
         <div>
-          <p className="font-bold text-accent leading-none text-[15px]" style={{ fontFamily: 'Space Grotesk' }}>
-            TanqueCerto
+          <p className="font-bold text-accent leading-none text-[15px]" style={{ fontFamily: 'Poppins' }}>
+            Octa
           </p>
           <p className="text-[11px] text-slate-500 mt-0.5">Postos confiáveis</p>
         </div>
@@ -58,7 +59,7 @@ export default function Sidebar() {
           <div className="flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-navy-950 flex-shrink-0 shadow-md"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              style={{ background: 'linear-gradient(135deg, #ff7a00, #d96800)' }}
             >
               {user.name[0].toUpperCase()}
             </div>

@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import OctaIcon from '../assets/OctaIcon';
 
 const TITLES = {
-  '/':            'TanqueCerto',
+  '/':            'Octa',
   '/add-station': 'Cadastrar Posto',
   '/profile':     'Meu Perfil',
 };
@@ -11,7 +12,7 @@ function getTitle(pathname) {
   if (pathname.startsWith('/stations/') && pathname.endsWith('/report')) return 'Nova Avaliação';
   if (pathname.startsWith('/stations/') && pathname.endsWith('/refuel')) return 'Registrar Abastecimento';
   if (pathname.startsWith('/stations/')) return 'Detalhes do Posto';
-  return 'TanqueCerto';
+  return 'Octa';
 }
 
 export default function Topbar() {
@@ -34,14 +35,14 @@ export default function Topbar() {
         </button>
       ) : (
         <span
-          className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-base flex-shrink-0 md:hidden"
+          className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0 md:hidden"
           aria-hidden="true"
         >
-          ⛽
+          <OctaIcon size={16} />
         </span>
       )}
 
-      <h1 className="font-semibold text-slate-100 text-[15px] truncate" style={{ fontFamily: 'Space Grotesk' }}>
+      <h1 className="font-semibold text-slate-100 text-[15px] truncate" style={{ fontFamily: 'Poppins' }}>
         {getTitle(pathname)}
       </h1>
     </header>

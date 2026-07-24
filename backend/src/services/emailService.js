@@ -30,9 +30,9 @@ async function sendEmail({ to, subject, html }) {
 async function sendConfirmationEmail(to, confirmUrl) {
   return sendEmail({
     to,
-    subject: 'Confirme seu e-mail — TanqueCerto',
+    subject: 'Confirme seu e-mail — Octa',
     html: `
-      <p>Falta pouco! Confirme seu e-mail pra ativar sua conta no TanqueCerto:</p>
+      <p>Falta pouco! Confirme seu e-mail pra ativar sua conta no Octa:</p>
       <p><a href="${confirmUrl}">${confirmUrl}</a></p>
       <p>Se você não criou uma conta, pode ignorar este e-mail.</p>
     `,
@@ -42,7 +42,7 @@ async function sendConfirmationEmail(to, confirmUrl) {
 async function sendPasswordResetEmail(to, resetUrl) {
   return sendEmail({
     to,
-    subject: 'Recuperação de senha — TanqueCerto',
+    subject: 'Recuperação de senha — Octa',
     html: `
       <p>Recebemos um pedido pra redefinir sua senha. Clique no link abaixo (válido por 1 hora):</p>
       <p><a href="${resetUrl}">${resetUrl}</a></p>

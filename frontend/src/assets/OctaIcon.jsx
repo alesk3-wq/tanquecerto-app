@@ -10,8 +10,10 @@ export default function OctaIcon({ size = 32, className = '', title }) {
       src={octaIconSrc}
       alt={title ?? ''}
       aria-hidden={title ? undefined : true}
-      height={size}
       className={className}
+      // Ver Icon.jsx: preflight do Tailwind reseta <img> pra max-width:100%,
+      // que ignora a altura pedida fora de um container já limitado.
+      style={{ height: size, width: 'auto', maxWidth: 'none' }}
     />
   );
 }

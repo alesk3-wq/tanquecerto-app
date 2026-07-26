@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import ReputationBadge from './ReputationBadge';
 import StationStatusBadge from './StationStatusBadge';
 import { repColor } from '../constants/reputation';
+import Icon from './Icon';
 
 export default function StationCard({ station, selected, onSelect, onRoute, userPos }) {
   const navigate = useNavigate();
@@ -36,14 +37,14 @@ export default function StationCard({ station, selected, onSelect, onRoute, user
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-navy-600">
           {station.distance !== undefined && (
             <span className="text-xs text-slate-400 flex items-center gap-1.5">
-              <span className="text-base" aria-hidden="true">📍</span>
+              <Icon name="pin" size={13} />
               <span>{station.distance} km de distância</span>
             </span>
           )}
           <span className="ml-auto flex items-center gap-2">
             {station.gas_price && (
-              <span className="text-xs font-semibold text-accent whitespace-nowrap">
-                ⛽ R$ {parseFloat(station.gas_price).toFixed(2)}
+              <span className="text-xs font-semibold text-accent whitespace-nowrap flex items-center gap-1">
+                <Icon name="combustivel" size={12} />R$ {parseFloat(station.gas_price).toFixed(2)}
               </span>
             )}
             {station.score !== undefined && (

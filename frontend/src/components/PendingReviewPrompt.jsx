@@ -1,7 +1,8 @@
 import FullScreenPrompt from './FullScreenPrompt';
+import Icon from './Icon';
 
 const COPY = {
-  fuel:    { icon: '⭐', title: 'Avaliar combustível', desc: 'Já faz alguns dias do seu abastecimento — como foi o combustível?' },
+  fuel:    { icon: <Icon name="estrela" size={40} />, title: 'Avaliar combustível', desc: 'Já faz alguns dias do seu abastecimento — como foi o combustível?' },
   service: { icon: '🙂', title: 'Avaliar atendimento', desc: 'Já faz alguns dias do seu abastecimento — como foi o atendimento?' },
 };
 

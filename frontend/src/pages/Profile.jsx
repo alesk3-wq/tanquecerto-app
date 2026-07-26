@@ -4,6 +4,7 @@ import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
+import Icon from '../components/Icon';
 import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 
 const TYPE_LABELS = { good: '✅ Positivo', suspect: '⚠️ Suspeito', bad: '❌ Negativo' };
@@ -191,15 +192,15 @@ export default function Profile() {
         <div className="relative z-10 grid grid-cols-3 gap-3 mt-6">
           <StatCard value={reports.length}   label="Avaliações"  color="text-accent" />
           <StatCard value={positives}        label="Positivas"   color="text-rep-good" />
-          <StatCard value={favorites.length} label="Favoritos"   color="text-slate-300" extra="⭐" />
+          <StatCard value={favorites.length} label="Favoritos"   color="text-slate-300" extra={<Icon name="coracao" size={12} />} />
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex overflow-x-auto border-b border-navy-600 px-4 mt-2">
         {[
-          { key: 'refuels',   label: 'Abastecimentos',   count: refuelStats.total, icon: '⛽' },
-          { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: '⭐' },
+          { key: 'refuels',   label: 'Abastecimentos',   count: refuelStats.total, icon: <Icon name="combustivel" size={14} /> },
+          { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: <Icon name="coracao" size={14} /> },
           { key: 'vehicles',  label: 'Meus Carros',      count: vehicles.length,   icon: '🚗' },
           { key: 'reports',   label: 'Avaliações',      count: reports.length },
         ].map((t) => (
@@ -236,7 +237,7 @@ export default function Profile() {
           {tab === 'reports' && (
             <>
               {reports.length === 0 ? (
-                <EmptyState icon="⛽" text="Você ainda não fez nenhuma avaliação." onExplore={() => navigate('/')} />
+                <EmptyState icon={<Icon name="estrela" size={28} />} text="Você ainda não fez nenhuma avaliação." onExplore={() => navigate('/')} />
               ) : (
                 <div className="space-y-3">
                   {reports.map((r) => (
@@ -297,7 +298,7 @@ export default function Profile() {
               )}
               {refuels.length === 0 ? (
                 <EmptyState
-                  icon="⛽"
+                  icon={<Icon name="combustivel" size={28} />}
                   text={refuelVehicleFilter ? 'Nenhum abastecimento registrado com esse carro.' : 'Nenhum abastecimento registrado.'}
                   onExplore={() => navigate('/')}
                 />
@@ -346,7 +347,7 @@ export default function Profile() {
             <>
               {favError && <ErrorMessage message={favError} className="mb-3" />}
               {favorites.length === 0 ? (
-                <EmptyState icon="⭐" text="Você ainda não favoritou nenhum posto." onExplore={() => navigate('/')} />
+                <EmptyState icon={<Icon name="coracao" size={28} />} text="Você ainda não favoritou nenhum posto." onExplore={() => navigate('/')} />
               ) : (
                 <div className="space-y-3">
                   {favorites.map((s) => (
@@ -360,7 +361,11 @@ export default function Profile() {
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm text-slate-200 truncate">{s.name}</p>
                           {s.brand   && <p className="text-xs text-slate-500 mt-0.5">{s.brand}</p>}
-                          {s.address && <p className="text-xs text-slate-600 mt-0.5 truncate">📍 {s.address}</p>}
+                          {s.address && (
+                            <p className="text-xs text-slate-600 mt-0.5 truncate flex items-center gap-1">
+                              <Icon name="pin" size={11} />{s.address}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <ReputationBadge reputation={s.reputation} />
@@ -460,13 +465,15 @@ export default function Profile() {
                               {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
                             </p>
                             {v.default_fuel_type && (
-                              <p className="text-xs text-slate-500 mt-0.5">⛽ {FUEL_LABELS[v.default_fuel_type]}</p>
+                              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                                <Icon name="combustivel" size={11} />{FUEL_LABELS[v.default_fuel_type]}
+                              </p>
                             )}
                             {v.consumption?.length > 0 && (
-                              <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-2">
+                              <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
                                 {v.consumption.map((c) => (
-                                  <span key={c.fuel_type}>
-                                    📊 {c.avg_consumption} km/l ({FUEL_LABELS[c.fuel_type]})
+                                  <span key={c.fuel_type} className="flex items-center gap-1">
+                                    <Icon name="grafico" size={11} />{c.avg_consumption} km/l ({FUEL_LABELS[c.fuel_type]})
                                   </span>
                                 ))}
                               </p>
@@ -474,8 +481,8 @@ export default function Profile() {
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             {v.is_default ? (
-                              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 rounded-full px-2 py-0.5 whitespace-nowrap">
-                                ⭐ Padrão
+                              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 rounded-full px-2 py-0.5 whitespace-nowrap flex items-center gap-1">
+                                <Icon name="estrela" size={11} />Padrão
                               </span>
                             ) : (
                               <button
@@ -530,7 +537,7 @@ function StatCard({ value, label, color, extra }) {
   return (
     <div className="bg-navy-950/50 rounded-xl p-3 text-center border border-navy-600/50 shadow-md shadow-black/20">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{extra ? `${extra} ` : ''}{label}</p>
+      <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center gap-1">{extra}{label}</p>
     </div>
   );
 }

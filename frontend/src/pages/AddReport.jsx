@@ -4,6 +4,7 @@ import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import SuccessOverlay, { OverlayPrimaryButton, OverlaySecondaryButton } from '../components/SuccessOverlay';
 import Button from '../components/Button';
+import Icon from '../components/Icon';
 import { FUEL_LABELS } from '../constants/fuels';
 import { repColor } from '../constants/reputation';
 import { REPORT_TAG_LABELS, REPORT_TAG_ORDER } from '../constants/reportTags';
@@ -69,7 +70,7 @@ export default function AddReport() {
     const tc = TYPE_RESULT[submitted];
     const color = repColor(submitted);
     return (
-      <SuccessOverlay icon="⭐" title="Obrigado!">
+      <SuccessOverlay icon={<Icon name="estrela" size={30} />} title="Obrigado!">
         <p className="text-rep-unknown text-sm leading-relaxed mb-5">
           Sua avaliação foi enviada e já contribui para a reputação do posto.
         </p>
@@ -110,13 +111,15 @@ export default function AddReport() {
     return (
       <div className="max-w-lg mx-auto p-4">
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 p-6 text-center">
-          <p className="text-3xl mb-3" aria-hidden="true">⛽</p>
+          <div className="mb-3 flex justify-center"><Icon name="combustivel" size={30} /></div>
           <p className="text-slate-200 font-semibold mb-1">Avaliação disponível após abastecer</p>
           <p className="text-sm text-slate-500 mb-5">
             Você precisa registrar um abastecimento neste posto antes de avaliá-lo.
           </p>
           <div className="flex flex-col gap-3">
-            <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>⛽ Abastecer</Button>
+            <Button size="md" onClick={() => navigate(`/stations/${id}/refuel`)}>
+              <span className="inline-flex items-center gap-1.5"><Icon name="combustivel" size={14} />Abastecer</span>
+            </Button>
             <Button size="md" variant="ghost" onClick={() => navigate('/')}>Voltar ao mapa</Button>
           </div>
         </div>

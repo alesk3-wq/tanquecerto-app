@@ -5,6 +5,7 @@ import ReputationBadge from '../components/ReputationBadge';
 import StationStatusBadge from '../components/StationStatusBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
+import Icon from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
 import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 import { REPORT_TAG_LABELS } from '../constants/reportTags';
@@ -214,7 +215,11 @@ export default function StationDetails() {
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold text-slate-100 leading-tight">{station.name}</h1>
             {station.brand  && <p className="text-slate-400 mt-1 font-medium">{station.brand}</p>}
-            {station.address && <p className="text-sm text-slate-500 mt-1">📍 {station.address}</p>}
+            {station.address && (
+              <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+                <Icon name="pin" size={13} />{station.address}
+              </p>
+            )}
             {station.anp?.registered && (
               <p className="text-xs text-slate-600 mt-1">
                 Registrado na ANP · {station.anp.compliance_flag
@@ -243,11 +248,11 @@ export default function StationDetails() {
               aria-pressed={favorited}
               aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
               title={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-              className={`w-11 h-11 flex items-center justify-center rounded-xl text-lg leading-none border transition-all
+              className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all
                 ${favorited ? 'bg-accent/15 border-accent/40' : 'bg-white/5 border-navy-600'}
                 ${favLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              {favorited ? '⭐' : '☆'}
+              <Icon name="coracao" size={20} className={favorited ? '' : 'opacity-40 grayscale'} />
             </button>
           </div>
         </div>

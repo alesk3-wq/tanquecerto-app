@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import Button from '../components/Button';
 import FullScreenPrompt from '../components/FullScreenPrompt';
+import OctaIcon from '../assets/OctaIcon';
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isAndroid = /Android/.test(navigator.userAgent);
@@ -64,7 +65,7 @@ export default function Install() {
   }
 
   if (installing) {
-    return <FullScreenPrompt icon="⛽" title="Instalando o app..." spinner />;
+    return <FullScreenPrompt icon={<OctaIcon size={40} />} title="Instalando o app..." spinner />;
   }
 
   return (
@@ -84,7 +85,9 @@ export default function Install() {
         <div className="space-y-3">
           {!showAndroidSteps ? (
             <Button onClick={handleInstallClick} disabled={!deferredPrompt}>
-              {deferredPrompt ? '⛽ Instalar aplicativo' : 'Preparando instalação...'}
+              {deferredPrompt ? (
+                <span className="inline-flex items-center gap-1.5"><OctaIcon size={14} />Instalar aplicativo</span>
+              ) : 'Preparando instalação...'}
             </Button>
           ) : (
             <>

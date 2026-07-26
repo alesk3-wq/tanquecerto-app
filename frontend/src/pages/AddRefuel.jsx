@@ -6,6 +6,7 @@ import SuccessOverlay, { OverlayPrimaryButton } from '../components/SuccessOverl
 import Button from '../components/Button';
 import OnboardingTip from '../components/OnboardingTip';
 import ServiceReviewForm from '../components/ServiceReviewForm';
+import Icon from '../components/Icon';
 import { FUEL_LABELS } from '../constants/fuels';
 import { REFUEL_CHECK_RADIUS_KM } from '../constants/map';
 import { haversineKm } from '../lib/distance';
@@ -189,7 +190,7 @@ export default function AddRefuel() {
   // — Tela de sucesso —
   if (submitted) {
     return (
-      <SuccessOverlay icon="⛽" title="Abastecimento registrado!">
+      <SuccessOverlay icon={<Icon name="combustivel" size={30} />} title="Abastecimento registrado!">
         <p className="text-slate-600 text-[13px] mb-5">{submitted.station_name}</p>
 
         {/* Resumo */}
@@ -218,7 +219,7 @@ export default function AddRefuel() {
             no seu próximo abastecimento (mesmo no mesmo dia, em outro posto,
             comum em viagem) ou em 2–9 dias como fallback. */}
         <div className="bg-navy-950 border border-navy-600 rounded-[14px] px-4 py-3.5 mb-6 flex items-start gap-2.5 text-left">
-          <span className="text-lg leading-none" aria-hidden="true">🔔</span>
+          <Icon name="notificacoes" size={20} />
           <p className="text-slate-400 text-[13px] leading-relaxed">
             Vamos te lembrar de avaliar o combustível deste posto no seu próximo
             abastecimento (ou em alguns dias, se demorar).
@@ -258,7 +259,9 @@ export default function AddRefuel() {
       {station && (
         <div>
           <h1 className="text-xl font-bold text-slate-100">Registrar abastecimento</h1>
-          <p className="text-sm text-slate-500 mt-0.5">📍 {station.name}{station.brand ? ` • ${station.brand}` : ''}</p>
+          <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+            <Icon name="pin" size={13} />{station.name}{station.brand ? ` • ${station.brand}` : ''}
+          </p>
         </div>
       )}
 
@@ -291,7 +294,7 @@ export default function AddRefuel() {
           )}
           {locationStatus === 'far' && (
             <>
-              <p className="text-3xl mb-3" aria-hidden="true">📍</p>
+              <div className="mb-3 flex justify-center"><Icon name="pin" size={30} /></div>
               <p className="text-slate-200 font-semibold mb-1">Você precisa estar no posto</p>
               <p className="text-sm text-slate-500 mb-5">
                 Só é possível registrar o abastecimento estando no posto.
@@ -472,7 +475,9 @@ export default function AddRefuel() {
         </div>
 
         <Button type="submit" disabled={loading}>
-          {loading ? 'Salvando...' : '⛽ Registrar abastecimento'}
+          {loading ? 'Salvando...' : (
+            <span className="inline-flex items-center gap-1.5"><Icon name="combustivel" size={14} />Registrar abastecimento</span>
+          )}
         </Button>
       </form>
       )}

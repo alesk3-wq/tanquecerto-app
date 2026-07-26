@@ -9,6 +9,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import MapTileLayer from '../components/map/MapTileLayer';
 import PendingReviewPrompt from '../components/PendingReviewPrompt';
 import Button from '../components/Button';
+import Icon from '../components/Icon';
 import usePendingReviewPrompt from '../hooks/usePendingReviewPrompt';
 import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_CENTER, REFUEL_CHECK_RADIUS_KM } from '../constants/map';
@@ -210,7 +211,9 @@ export default function Home() {
                   <div className="px-4 pt-3 pb-3.5">
                     <div className="flex items-center justify-between mb-3">
                       <ReputationBadge reputation={s.reputation} />
-                      <span className="text-slate-600 text-xs">📍 {s.distance} km</span>
+                      <span className="text-slate-600 text-xs flex items-center gap-1">
+                        <Icon name="pin" size={11} />{s.distance} km
+                      </span>
                     </div>
 
                     <div className="flex flex-col gap-2.5">
@@ -219,7 +222,9 @@ export default function Home() {
                           onClick={() => (isAtStation(userPos, s) ? navigate(`/stations/${s.id}/refuel`) : openRoute(userPos, s))}
                           className="w-full min-h-[40px] bg-rep-good text-navy-950 font-bold text-[13px] rounded-xl px-3 py-2.5 shadow-lg shadow-rep-good/20 cursor-pointer active:scale-[0.97] transition-transform"
                         >
-                          {isAtStation(userPos, s) ? '⛽ Abastecer' : '🧭 Como chegar'}
+                          {isAtStation(userPos, s) ? (
+                            <span className="inline-flex items-center gap-1.5"><Icon name="combustivel" size={14} />Abastecer</span>
+                          ) : '🧭 Como chegar'}
                         </button>
                       )}
                       <button
@@ -249,7 +254,7 @@ export default function Home() {
               className="shadow-xl"
               onClick={() => navigate(`/stations/${stationAtLocation.id}/refuel`)}
             >
-              ⛽ Abastecer
+              <span className="inline-flex items-center gap-1.5"><Icon name="combustivel" size={14} />Abastecer</span>
             </Button>
           </div>
         )}
@@ -350,7 +355,7 @@ export default function Home() {
             )}
             {!loading && !stations.length && !error && userPos && (
               <div className="text-center py-8 bg-navy-800/50 rounded-xl border border-dashed border-navy-600">
-                <p className="text-2xl mb-2" aria-hidden="true">🔍</p>
+                <div className="mb-2 flex justify-center"><Icon name="busca" size={28} /></div>
                 <p className="text-slate-500 text-sm">Nenhum posto neste raio.</p>
                 <button
                   onClick={() => navigate('/add-station')}
@@ -362,7 +367,7 @@ export default function Home() {
             )}
             {!loading && !userPos && (
               <div className="text-center py-8 bg-navy-800/50 rounded-xl border border-dashed border-navy-600">
-                <p className="text-2xl mb-2" aria-hidden="true">📍</p>
+                <div className="mb-2 flex justify-center"><Icon name="pin" size={28} /></div>
                 {gpsError ? (
                   <>
                     <p className="text-slate-400 text-sm font-medium">Não foi possível obter sua localização.</p>

@@ -5,10 +5,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/.env"
 
-BACKUP_DIR="/var/backups/tanquecerto"
+BACKUP_DIR="/var/backups/${DB_NAME}"
 RETENTION_DAYS=14
 STAMP="$(date +%Y-%m-%d_%H%M%S)"
-OUT_FILE="$BACKUP_DIR/tanquecerto_${STAMP}.sql.gz"
+OUT_FILE="$BACKUP_DIR/${DB_NAME}_${STAMP}.sql.gz"
 
 mkdir -p "$BACKUP_DIR"
 
@@ -29,6 +29,6 @@ EOF
 mysqldump --defaults-extra-file="$CNF" --single-transaction --quick "$DB_NAME" \
   | gzip > "$OUT_FILE"
 
-find "$BACKUP_DIR" -name 'tanquecerto_*.sql.gz' -mtime +"$RETENTION_DAYS" -delete
+find "$BACKUP_DIR" -name "${DB_NAME}_*.sql.gz" -mtime +"$RETENTION_DAYS" -delete
 
 echo "Backup OK: $OUT_FILE ($(du -h "$OUT_FILE" | cut -f1))"

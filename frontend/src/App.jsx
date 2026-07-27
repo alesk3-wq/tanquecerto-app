@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
+import RootRoute from './components/RootRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -47,9 +48,12 @@ export default function App() {
           <Route path="/confirm-email/:token"  element={<ConfirmEmail />} />
           <Route path="/instalar" element={<Install />} />
 
+          {/* Raiz: apresentação pra quem não está logado, mapa pra quem está */}
+          <Route path="/" element={<RootRoute />} />
+
           {/* Páginas com sidebar */}
           <Route element={<AppLayout />}>
-            <Route path="/"             element={<Home />} />
+            <Route path="/mapa"         element={<Home />} />
             <Route path="/stations/:id" element={<StationDetails />} />
 
             {/* Rotas que exigem login */}

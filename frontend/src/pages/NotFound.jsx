@@ -7,7 +7,7 @@ export default function NotFound() {
         <p className="text-4xl mb-3" aria-hidden="true">🗺️</p>
         <h1 className="text-lg font-bold text-slate-100 mb-1">Página não encontrada</h1>
         <p className="text-slate-500 text-sm mb-4">O endereço que você acessou não existe.</p>
-        <Link to="/" className="text-sm text-accent hover:underline font-medium">
+        <Link to="/mapa" className="text-sm text-accent hover:underline font-medium">
           ← Voltar ao mapa
         </Link>
       </div>

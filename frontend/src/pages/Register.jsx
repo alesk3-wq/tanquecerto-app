@@ -7,6 +7,9 @@ import { isValidCPF } from '../utils/cpf';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', cpf: '' });
+  // Fora do `form` de propósito — o form inteiro vai no POST, e a confirmação
+  // é só checagem local (mesma escolha do ResetPassword.jsx).
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -14,6 +17,10 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (form.password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
     if (!isValidCPF(form.cpf)) {
       setError('CPF inválido.');
       return;
@@ -82,6 +89,18 @@ export default function Register() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             placeholder="Mínimo 6 caracteres"
+            className={authInputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="reg-confirm" className={authLabelClass}>Confirmar senha</label>
+          <input
+            id="reg-confirm"
+            type="password" required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repita a senha"
             className={authInputClass}
           />
         </div>

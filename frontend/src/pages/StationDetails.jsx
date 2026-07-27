@@ -91,7 +91,7 @@ export default function StationDetails() {
     } catch (err) {
       // Posto inexistente → volta ao mapa; outros erros → mensagem com retry
       if (err.response?.status === 404) {
-        navigate('/');
+        navigate('/mapa');
         return;
       }
       setPageError('Não foi possível carregar o posto.');

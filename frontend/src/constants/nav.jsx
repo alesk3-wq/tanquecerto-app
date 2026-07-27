@@ -1,7 +1,7 @@
 // Itens de navegação principais — usados pela Sidebar (desktop) e pela BottomNav (mobile).
 export const NAV = [
   {
-    path: '/',
+    path: '/mapa',
     exact: true,
     label: 'Mapa',
     tabLabel: 'Mapa',

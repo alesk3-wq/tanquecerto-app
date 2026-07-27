@@ -3,26 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import Button from '../components/Button';
 import FullScreenPrompt from '../components/FullScreenPrompt';
+import Step from '../components/Step';
 import OctaIcon from '../assets/OctaIcon';
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isAndroid = /Android/.test(navigator.userAgent);
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
-
-function Step({ n, title, desc }) {
-  return (
-    <div className="flex items-start gap-3 bg-navy-950 border border-navy-600 rounded-xl p-3.5">
-      <div className="w-8 h-8 rounded-full bg-accent/12 text-accent font-bold text-sm flex items-center justify-center flex-shrink-0">
-        {n}
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-200">{title}</p>
-        <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{desc}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function Install() {
   const navigate = useNavigate();
@@ -59,7 +46,7 @@ export default function Install() {
       setInstalling(true);
       setTimeout(() => {
         window.close();
-        setTimeout(() => navigate('/'), 800);
+        setTimeout(() => navigate('/mapa'), 800);
       }, 3000);
     }
   }
@@ -77,7 +64,7 @@ export default function Install() {
           </div>
           <p className="text-slate-200 font-semibold mb-1">App já instalado!</p>
           <p className="text-slate-500 text-sm mb-6">Você já está usando o Octa como aplicativo.</p>
-          <Button onClick={() => navigate('/')}>Ir para o mapa →</Button>
+          <Button onClick={() => navigate('/mapa')}>Ir para o mapa →</Button>
         </div>
       )}
 
@@ -116,7 +103,7 @@ export default function Install() {
           <p className="text-slate-500 text-sm mb-6">
             Para instalar o app, abra esta página no seu smartphone Android ou iPhone.
           </p>
-          <Button variant="secondary" onClick={() => navigate('/')}>Continuar no navegador</Button>
+          <Button variant="secondary" onClick={() => navigate('/mapa')}>Continuar no navegador</Button>
         </div>
       )}
     </AuthLayout>

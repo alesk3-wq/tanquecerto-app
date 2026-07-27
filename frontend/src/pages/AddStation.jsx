@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MapContainer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import '../lib/leafletSetup';
 import api from '../api/api';
 import ReputationBadge from '../components/ReputationBadge';
@@ -11,9 +11,54 @@ import Button from '../components/Button';
 import { DEFAULT_CENTER } from '../constants/map';
 import { reverseGeocode } from '../lib/geocode';
 
+// Pino da localização: posiciona por clique no mapa OU arrastando o próprio
+// pino (mais natural quando ele já veio marcado pelo GPS e só precisa de ajuste).
 function ClickMarker({ position, onSelect }) {
   useMapEvents({ click: (e) => onSelect(e.latlng) });
-  return position ? <Marker position={position} /> : null;
+  if (!position) return null;
+  return (
+    <Marker
+      position={position}
+      draggable
+      eventHandlers={{ dragend: (e) => onSelect(e.target.getLatLng()) }}
+    />
+  );
+}
+
+// Marca o pino automaticamente onde o GPS aponta, pra o usuário só ajustar em
+// vez de procurar o ponto do zero. Precisa ser filho do MapContainer pra ter
+// acesso ao mapa via useMap() — mesmo padrão do LocateUser em Home.jsx.
+//
+// Não usa o `setView` embutido do locate(): se o usuário já marcou um ponto à
+// mão enquanto o GPS demorava, mover o mapa e trocar o pino embaixo dele seria
+// atropelar o que ele fez.
+function LocateAndPin({ enabled, onLocated, onError }) {
+  const map = useMap();
+  const cbRef = useRef({ onLocated, onError });
+
+  useEffect(() => {
+    cbRef.current = { onLocated, onError };
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const found = (e) => {
+      if (cbRef.current.onLocated(e.latlng)) {
+        // Zoom 17: perto o suficiente pra distinguir a bomba da calçada.
+        map.setView(e.latlng, 17);
+      }
+    };
+    const failed = () => cbRef.current.onError();
+    map.locate({ enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    map.on('locationfound', found);
+    map.on('locationerror', failed);
+    return () => {
+      map.off('locationfound', found);
+      map.off('locationerror', failed);
+    };
+  }, [map, enabled]);
+
+  return null;
 }
 
 // Card compacto de posto próximo (usado no aviso inline e no modal de duplicata)
@@ -47,8 +92,16 @@ export default function AddStation() {
   const [error, setError] = useState('');
   const [gpsWarning, setGpsWarning] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Centro inicial: posição vinda de navegação, senão cacheada, senão o padrão (GPS tenta melhorar depois)
-  const [center, setCenter] = useState(() => {
+  // Pino veio do GPS e ainda não foi ajustado — controla o aviso "reposicione
+  // se necessário", que some assim que o usuário mexe.
+  const [autoPlaced, setAutoPlaced] = useState(false);
+  // Já começa buscando quando não veio posição pronta — o LocateAndPin dispara
+  // o locate() assim que o mapa monta.
+  const [locating, setLocating] = useState(!initialPosition);
+  // Centro só da primeira renderização (o Leaflet ignora mudanças nessa prop —
+  // quem move o mapa depois é o LocateAndPin, via useMap). Usa a posição
+  // cacheada pra não abrir no meio do país e depois pular pro GPS.
+  const [center] = useState(() => {
     if (initialPosition) return [initialPosition.lat, initialPosition.lng];
     const cached = localStorage.getItem('tanquecerto_pos');
     if (!cached) return DEFAULT_CENTER;
@@ -66,22 +119,6 @@ export default function AddStation() {
   const [geocoding, setGeocoding] = useState(false);
   const [addressTouched, setAddressTouched] = useState(false);
 
-  useEffect(() => {
-    if (initialPosition) return;
-    if (localStorage.getItem('tanquecerto_pos')) return;
-    navigator.geolocation?.getCurrentPosition(
-      (p) => setCenter([p.coords.latitude, p.coords.longitude]),
-      () => setGpsWarning(true),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Posição já veio pronta (ex: fluxo "Você está abastecendo?") — marca no mapa sem precisar de clique manual
-  useEffect(() => {
-    if (!initialPosition) return;
-    handlePositionSelect(initialPosition);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const checkNearby = useCallback(async (lat, lng) => {
     setCheckingNearby(true);
     setNearbyStations([]);
@@ -97,18 +134,48 @@ export default function AddStation() {
     }
   }, []);
 
-  function handlePositionSelect(latlng) {
-    setPosition(latlng);
-    checkNearby(latlng.lat, latlng.lng);
-    if (!addressTouched) fillAddress(latlng.lat, latlng.lng);
-  }
-
   async function fillAddress(lat, lng) {
     setGeocoding(true);
     const address = await reverseGeocode(lat, lng);
     if (address && !addressTouched) setForm((f) => ({ ...f, address }));
     setGeocoding(false);
   }
+
+  function handlePositionSelect(latlng) {
+    setPosition(latlng);
+    checkNearby(latlng.lat, latlng.lng);
+    if (!addressTouched) fillAddress(latlng.lat, latlng.lng);
+  }
+
+  // Clique/arraste do usuário: mesma coisa, mas tira o aviso de "veio do GPS".
+  function handleManualSelect(latlng) {
+    setAutoPlaced(false);
+    handlePositionSelect(latlng);
+  }
+
+  // Chamado pelo LocateAndPin quando o GPS responde. Devolve se aceitou a
+  // posição — se o usuário já marcou algo à mão nesse meio tempo, ignora
+  // (e o mapa não se mexe) pra não atropelar a escolha dele.
+  function handleGpsLocated(latlng) {
+    setLocating(false);
+    if (position) return false;
+    handlePositionSelect(latlng);
+    setAutoPlaced(true);
+    return true;
+  }
+
+  function handleGpsError() {
+    setLocating(false);
+    setGpsWarning(true);
+  }
+
+  // Posição já veio pronta (ex: fluxo "Você está abastecendo?") — marca no mapa
+  // sem precisar de clique manual, e sem acionar o GPS. Os setState acontecem
+  // uma vez só, na montagem.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (initialPosition) handlePositionSelect(initialPosition);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doSubmit() {
     setError('');
@@ -225,7 +292,20 @@ export default function AddStation() {
         <div className="bg-navy-800 rounded-2xl border border-navy-600 shadow-lg shadow-black/20 overflow-hidden">
           <div className="p-4 pb-2">
             <p className="font-medium text-slate-300">Localização *</p>
-            <p className="text-sm text-slate-500">Clique no mapa para marcar o posto</p>
+            <p className="text-sm text-slate-500">
+              Toque no mapa ou arraste o pino para ajustar
+            </p>
+            {locating && !position && (
+              <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 border border-slate-500 border-t-transparent rounded-full animate-spin" />
+                Buscando sua localização...
+              </p>
+            )}
+            {autoPlaced && (
+              <p className="text-xs text-accent mt-1">
+                📍 Marcamos onde seu GPS apontou — reposicione se não estiver exato.
+              </p>
+            )}
             {gpsWarning && !position && (
               <p className="text-xs text-rep-suspect/80 mt-1">
                 ⚠️ Não foi possível obter sua localização — navegue no mapa e marque manualmente.
@@ -249,7 +329,12 @@ export default function AddStation() {
           <div style={{ height: 280 }}>
             <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
               <MapTileLayer />
-              <ClickMarker position={position} onSelect={handlePositionSelect} />
+              <LocateAndPin
+                enabled={!initialPosition}
+                onLocated={handleGpsLocated}
+                onError={handleGpsError}
+              />
+              <ClickMarker position={position} onSelect={handleManualSelect} />
             </MapContainer>
           </div>
         </div>

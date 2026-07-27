@@ -51,6 +51,31 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Painel — só pro admin. Fica fora do array NAV de propósito: ele é
+            compartilhado com o BottomNav do celular, e um quarto item quebraria
+            o layout de 3 abas pra todo mundo. */}
+        {user?.is_admin && (
+          <Link
+            to="/admin"
+            className={`
+              flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+              ${pathname.startsWith('/admin')
+                ? 'bg-accent/10 text-accent border border-accent/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#ffffff08] border border-transparent'
+              }
+            `}
+          >
+            <span className={`flex-shrink-0 ${pathname.startsWith('/admin') ? 'text-accent' : 'text-slate-500'}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            </span>
+            Painel
+          </Link>
+        )}
       </nav>
 
       {/* Footer — user info ou login/register */}

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import Icon from '../components/Icon';
+import StatCard from '../components/StatCard';
 import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
 
 const TYPE_LABELS = { good: '✅ Positivo', suspect: '⚠️ Suspeito', bad: '❌ Negativo' };
@@ -533,11 +534,3 @@ function EmptyState({ icon, text, onExplore }) {
   );
 }
 
-function StatCard({ value, label, color, extra }) {
-  return (
-    <div className="bg-navy-950/50 rounded-xl p-3 text-center border border-navy-600/50 shadow-md shadow-black/20">
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-500 mt-0.5 flex items-center justify-center gap-1">{extra}{label}</p>
-    </div>
-  );
-}

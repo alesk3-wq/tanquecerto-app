@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const db = require('../config/db');
 const { createToken, consumeToken, findByHash } = require('../services/tokenService');
+const { isAdmin } = require('../services/adminService');
 const { sendConfirmationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const EMAIL_CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -69,7 +70,10 @@ async function login(req, res, next) {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, is_admin: isAdmin(user.email) },
+    });
   } catch (err) {
     next(err);
   }
@@ -82,7 +86,7 @@ async function me(req, res, next) {
       [req.user.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Usuário não encontrado.' });
-    res.json(rows[0]);
+    res.json({ ...rows[0], is_admin: isAdmin(rows[0].email) });
   } catch (err) {
     next(err);
   }

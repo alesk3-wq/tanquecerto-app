@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import RootRoute from './components/RootRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -18,6 +19,7 @@ import AddServiceReview from './pages/AddServiceReview';
 import AddStation from './pages/AddStation';
 import AddRefuel from './pages/AddRefuel';
 import Profile from './pages/Profile';
+import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
 function AppLayout() {
@@ -63,6 +65,11 @@ export default function App() {
               <Route path="/stations/:id/refuel" element={<AddRefuel />} />
               <Route path="/add-station"         element={<AddStation />} />
               <Route path="/profile"             element={<Profile />} />
+            </Route>
+
+            {/* Painel administrativo — o portão de verdade é o backend */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

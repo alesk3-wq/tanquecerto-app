@@ -42,8 +42,14 @@ export default function AuthLayout({ subtitle, cardTitle, children, footer }) {
         style={{ background: 'linear-gradient(135deg, rgba(6,13,31,0.90) 0%, rgba(10,22,40,0.78) 50%, rgba(6,13,31,0.93) 100%)' }}
       />
 
-      {/* Conteúdo centralizado */}
-      <div className="relative z-[2] min-h-dvh flex items-center justify-center p-4 overflow-y-auto">
+      {/* Conteúdo centralizado — o container que rola precisa de ALTURA
+          definida (h-full), não min-height: com min-h-dvh ele crescia junto
+          com o conteúdo em vez de rolar, e o `fixed inset-0 overflow-hidden`
+          do pai cortava o que passasse da tela (o botão de enviar sumia em
+          telas baixas). A centralização vai no filho, com min-h-full, pra
+          continuar centrado quando cabe e poder crescer quando não cabe. */}
+      <div className="relative z-[2] h-full overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
         <div className="w-full max-w-[400px] py-6">
           {/* Branding */}
           <div className="text-center mb-8">
@@ -80,6 +86,7 @@ export default function AuthLayout({ subtitle, cardTitle, children, footer }) {
           {footer && (
             <p className="text-center text-sm text-slate-600 mt-5">{footer}</p>
           )}
+        </div>
         </div>
       </div>
     </div>

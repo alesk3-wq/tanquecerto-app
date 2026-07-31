@@ -98,7 +98,7 @@ async function myRefuels(req, res, next) {
     const filterParams = vehicleFilter ? [req.user.id, vehicleId] : [req.user.id];
 
     const [rows] = await db.query(
-      `SELECT r.id, r.fuel_type, r.liters, r.total_value, r.km, r.notes, r.refueled_at,
+      `SELECT r.id, r.vehicle_id, r.fuel_type, r.liters, r.total_value, r.km, r.full_tank, r.notes, r.refueled_at,
               ROUND(r.total_value / r.liters, 3) AS price_per_liter,
               s.id AS station_id, s.name AS station_name, s.brand AS station_brand,
               v.brand AS vehicle_brand, v.model AS vehicle_model
@@ -110,6 +110,9 @@ async function myRefuels(req, res, next) {
        LIMIT ? OFFSET ?`,
       [...filterParams, limit, offset]
     );
+    // full_tank vem como 0/1 do driver — normaliza pra boolean de verdade,
+    // igual já é feito com is_default em vehiclesController.js.
+    for (const r of rows) r.full_tank = !!r.full_tank;
 
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM refuels r WHERE r.user_id = ? ${vehicleFilter}`,
@@ -187,4 +190,54 @@ async function pendingReview(req, res, next) {
   }
 }
 
-module.exports = { create, myRefuels, pendingReview, MIN_HOURS_BETWEEN_REFUELS };
+// Edição: corrige dados digitados errado (veículo, km, litros, valor...) num
+// abastecimento já registrado. Propositalmente NÃO reabre station_id nem as
+// checagens de GPS/cooldown — essas provam "você estava no posto agora", o
+// que não faz sentido reaplicar numa correção posterior.
+//
+// Trocar vehicle_id sozinho já corrige o consumo dos dois carros envolvidos:
+// nada é armazenado, o km/l de cada veículo é sempre recalculado ao vivo a
+// partir das linhas de refuels (ver consumptionService.js).
+async function update(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { vehicle_id, fuel_type, liters, total_value, km, full_tank, notes, refueled_at } = req.body;
+
+    if (vehicle_id) {
+      const [[vehicle]] = await db.query(
+        'SELECT id FROM vehicles WHERE id = ? AND user_id = ?',
+        [vehicle_id, req.user.id]
+      );
+      if (!vehicle) return res.status(400).json({ error: 'Veículo inválido.' });
+    }
+
+    const [result] = await db.query(
+      `UPDATE refuels
+       SET vehicle_id = ?, fuel_type = ?, liters = ?, total_value = ?, km = ?, full_tank = ?, notes = ?, refueled_at = ?
+       WHERE id = ? AND user_id = ?`,
+      [vehicle_id || null, fuel_type, liters, total_value, km || null, full_tank === false ? 0 : 1, notes || null, refueled_at, req.params.id, req.user.id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: 'Abastecimento não encontrado.' });
+
+    res.json({ id: parseInt(req.params.id), vehicle_id: vehicle_id || null, fuel_type, liters, total_value, km: km || null, full_tank: full_tank !== false, notes: notes || null, refueled_at });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function remove(req, res, next) {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM refuels WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: 'Abastecimento não encontrado.' });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, myRefuels, pendingReview, update, remove, MIN_HOURS_BETWEEN_REFUELS };

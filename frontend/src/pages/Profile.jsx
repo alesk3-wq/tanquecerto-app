@@ -29,6 +29,11 @@ export default function Profile() {
   const [refuelStats, setRefuelStats] = useState({ total: 0, total_liters: 0, total_spent: 0 });
   const [refuelVehicleFilter, setRefuelVehicleFilter] = useState('');
   const [refuelsLoading, setRefuelsLoading] = useState(false);
+  const [editingRefuelId, setEditingRefuelId] = useState(null);
+  const [refuelEditForm, setRefuelEditForm] = useState(null);
+  const [refuelEditError, setRefuelEditError] = useState('');
+  const [savingRefuel, setSavingRefuel] = useState(false);
+  const [confirmDeleteRefuelId, setConfirmDeleteRefuelId] = useState(null);
 
   const [vehicles, setVehicles]   = useState([]);
   const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '', default_fuel_type: '' });
@@ -70,6 +75,84 @@ export default function Profile() {
       setError('Não foi possível filtrar os abastecimentos.');
     } finally {
       setRefuelsLoading(false);
+    }
+  }
+
+  // Depois de editar/excluir um abastecimento, recarrega abastecimentos (com
+  // o filtro atual) E veículos — trocar de carro num abastecimento muda o
+  // consumo médio dos DOIS carros envolvidos, e é o backend quem sabe
+  // recalcular isso, não o frontend.
+  async function reloadRefuelsAndVehicles() {
+    const [rf, v] = await Promise.all([
+      api.get('/refuels/mine', refuelVehicleFilter ? { params: { vehicle_id: refuelVehicleFilter } } : undefined),
+      api.get('/vehicles/mine'),
+    ]);
+    setRefuels(rf.data.data);
+    setRefuelStats({ total: rf.data.total, total_liters: rf.data.total_liters, total_spent: rf.data.total_spent });
+    setVehicles(v.data);
+  }
+
+  function startEditRefuel(r) {
+    setEditingRefuelId(r.id);
+    setRefuelEditForm({
+      vehicle_id: r.vehicle_id ? String(r.vehicle_id) : '',
+      fuel_type: r.fuel_type,
+      liters: String(r.liters),
+      total_value: String(r.total_value),
+      km: r.km != null ? String(r.km) : '',
+      full_tank: r.full_tank,
+      notes: r.notes ?? '',
+      refueled_at: r.refueled_at.slice(0, 10),
+    });
+    setRefuelEditError('');
+  }
+
+  function cancelEditRefuel() {
+    setEditingRefuelId(null);
+    setRefuelEditForm(null);
+    setRefuelEditError('');
+  }
+
+  async function saveRefuel(e) {
+    e.preventDefault();
+    setRefuelEditError('');
+    if (!refuelEditForm.liters || !refuelEditForm.total_value) {
+      setRefuelEditError('Informe litros e valor total.');
+      return;
+    }
+    if (refuelEditForm.vehicle_id && !refuelEditForm.km) {
+      setRefuelEditError('Informe o KM do veículo.');
+      return;
+    }
+    setSavingRefuel(true);
+    try {
+      await api.put(`/refuels/${editingRefuelId}`, {
+        vehicle_id: refuelEditForm.vehicle_id ? parseInt(refuelEditForm.vehicle_id) : null,
+        fuel_type: refuelEditForm.fuel_type,
+        liters: parseFloat(refuelEditForm.liters),
+        total_value: parseFloat(refuelEditForm.total_value),
+        km: refuelEditForm.km ? parseInt(refuelEditForm.km) : null,
+        full_tank: refuelEditForm.full_tank,
+        notes: refuelEditForm.notes || null,
+        refueled_at: refuelEditForm.refueled_at,
+      });
+      cancelEditRefuel();
+      await reloadRefuelsAndVehicles();
+    } catch (err) {
+      setRefuelEditError(err.response?.data?.error ?? err.response?.data?.errors?.[0]?.msg ?? 'Erro ao salvar.');
+    } finally {
+      setSavingRefuel(false);
+    }
+  }
+
+  async function removeRefuel(id) {
+    setConfirmDeleteRefuelId(null);
+    try {
+      await api.delete(`/refuels/${id}`);
+      if (editingRefuelId === id) cancelEditRefuel();
+      await reloadRefuelsAndVehicles();
+    } catch {
+      setError('Não foi possível excluir o abastecimento.');
     }
   }
 
@@ -297,6 +380,7 @@ export default function Profile() {
                   <StatCard value={`R$${parseFloat(refuelStats.total_spent).toFixed(0)}`} label="Gasto" color="text-rep-good" />
                 </div>
               )}
+              {refuelEditError && <ErrorMessage message={refuelEditError} className="mb-3" />}
               {refuels.length === 0 ? (
                 <EmptyState
                   icon={<Icon name="combustivel" size={28} />}
@@ -306,36 +390,135 @@ export default function Profile() {
               ) : (
                 <div className="space-y-3">
                   {refuels.map((r) => (
-                    <button key={r.id} type="button"
-                      className={cardClass}
-                      onClick={() => navigate(`/stations/${r.station_id}`)}>
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
-                          {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
-                          {r.vehicle_brand && (
-                            <p className="text-xs text-slate-500 mt-0.5">🚗 {r.vehicle_brand} {r.vehicle_model}</p>
+                    editingRefuelId === r.id ? (
+                      <form key={r.id} onSubmit={saveRefuel}
+                        className="bg-navy-800 rounded-xl border border-accent/30 p-4 space-y-3">
+                        <p className="font-medium text-slate-300 text-sm">{r.station_name}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={refuelEditForm.vehicle_id}
+                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, vehicle_id: e.target.value })}
+                            className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
+                          >
+                            <option value="">Sem veículo</option>
+                            {vehicles.map((v) => (
+                              <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.year})</option>
+                            ))}
+                          </select>
+                          <input
+                            type="date"
+                            value={refuelEditForm.refueled_at}
+                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, refueled_at: e.target.value })}
+                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
+                          />
+                          <select
+                            value={refuelEditForm.fuel_type}
+                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, fuel_type: e.target.value })}
+                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
+                          >
+                            {FUEL_ORDER.map((f) => <option key={f} value={f}>{FUEL_LABELS[f]}</option>)}
+                          </select>
+                          <input
+                            type="number" step="0.001" min="0.1" placeholder="Litros"
+                            value={refuelEditForm.liters}
+                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, liters: e.target.value })}
+                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                          />
+                          <input
+                            type="number" step="0.01" min="0.01" placeholder="Total (R$)"
+                            value={refuelEditForm.total_value}
+                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, total_value: e.target.value })}
+                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                          />
+                          {refuelEditForm.vehicle_id && (
+                            <input
+                              type="number" min="0" placeholder="KM do veículo"
+                              value={refuelEditForm.km}
+                              onChange={(e) => setRefuelEditForm({ ...refuelEditForm, km: e.target.value })}
+                              className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+                            />
                           )}
+                          <label className="col-span-2 flex items-center gap-2 text-sm text-slate-300">
+                            <input type="checkbox" checked={refuelEditForm.full_tank}
+                              onChange={(e) => setRefuelEditForm({ ...refuelEditForm, full_tank: e.target.checked })}
+                              className="accent-accent w-4 h-4" />
+                            Completei o tanque
+                          </label>
                         </div>
-                        <span className="text-xs text-slate-500 flex-shrink-0">
-                          {new Date(r.refueled_at).toLocaleDateString('pt-BR')}
-                        </span>
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={savingRefuel}
+                            className="flex-1 bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
+                            {savingRefuel ? 'Salvando...' : 'Salvar alterações'}
+                          </button>
+                          <button type="button" onClick={cancelEditRefuel}
+                            className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5">
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    ) : confirmDeleteRefuelId === r.id ? (
+                      <div key={r.id} className="bg-navy-800 rounded-xl border border-navy-600 p-4 flex items-center justify-between gap-2">
+                        <p className="text-sm text-slate-300 min-w-0">Excluir este abastecimento?</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => setConfirmDeleteRefuelId(null)}
+                            className="text-xs font-semibold text-slate-400 border border-navy-600 rounded-lg px-3 py-1.5"
+                          >Não</button>
+                          <button
+                            onClick={() => removeRefuel(r.id)}
+                            className="text-xs font-semibold text-white bg-rep-bad rounded-lg px-3 py-1.5"
+                          >Sim, excluir</button>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                          <p className="text-xs text-slate-500">{FUEL_LABELS[r.fuel_type]}</p>
+                    ) : (
+                      <div key={r.id}
+                        role="button"
+                        tabIndex={0}
+                        className={cardClass}
+                        onClick={() => navigate(`/stations/${r.station_id}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/stations/${r.station_id}`); }}>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
+                            {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
+                            {r.vehicle_brand && (
+                              <p className="text-xs text-slate-500 mt-0.5">🚗 {r.vehicle_brand} {r.vehicle_model}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-slate-500">
+                              {new Date(r.refueled_at).toLocaleDateString('pt-BR')}
+                            </span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); startEditRefuel(r); }}
+                              title="Editar abastecimento"
+                              aria-label="Editar abastecimento"
+                              className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
+                            >✎</button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteRefuelId(r.id); }}
+                              title="Excluir abastecimento"
+                              aria-label="Excluir abastecimento"
+                              className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
+                            >✕</button>
+                          </div>
                         </div>
-                        <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                          <p className="text-xs font-semibold text-slate-200">{parseFloat(r.liters).toFixed(2)} L</p>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
+                            <p className="text-xs text-slate-500">{FUEL_LABELS[r.fuel_type]}</p>
+                          </div>
+                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
+                            <p className="text-xs font-semibold text-slate-200">{parseFloat(r.liters).toFixed(2)} L</p>
+                          </div>
+                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
+                            <p className="text-xs font-semibold text-accent">R$ {parseFloat(r.total_value).toFixed(2)}</p>
+                          </div>
                         </div>
-                        <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                          <p className="text-xs font-semibold text-accent">R$ {parseFloat(r.total_value).toFixed(2)}</p>
-                        </div>
+                        {r.price_per_liter && (
+                          <p className="text-xs text-slate-600 mt-2 text-right">R$ {parseFloat(r.price_per_liter).toFixed(3)}/L</p>
+                        )}
                       </div>
-                      {r.price_per_liter && (
-                        <p className="text-xs text-slate-600 mt-2 text-right">R$ {parseFloat(r.price_per_liter).toFixed(3)}/L</p>
-                      )}
-                    </button>
+                    )
                   ))}
                 </div>
               )}

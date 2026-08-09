@@ -1,4 +1,9 @@
-# TanqueCerto — Contexto do Projeto
+# Octa (ex-TanqueCerto) — Contexto do Projeto
+
+**Rebrand em 2026-07-24**: o app virou **Octa** (nome, cores, tipografia, ícone —
+ver seção Visual). É só a marca voltada pro usuário; repo (`/opt/tanquecerto`),
+banco (`tanquecerto`), service (`tanquecerto.service`) e domínio Tailscale
+mantiveram o nome antigo de propósito, sem rename de infra.
 
 ## O que é
 
@@ -260,6 +265,35 @@ synced_at}`), fora de `list`/`near` (endpoints de alto volume).
 ANP muda pouco), roda como `alex`, log em `/var/log/tanquecerto/anp-sync.log`.
 Idempotente — seguro rodar de novo manualmente a qualquer momento.
 
+## Painel administrativo
+
+Só leitura, métricas agregadas (totais, engajamento, série de crescimento dos
+últimos 30 dias, últimos 10 registros por tabela) — `backend/src/controllers/
+adminController.js`, uma rota só (`GET /api/admin/metrics`).
+
+**Quem é admin**: `backend/src/services/adminService.js` — só o e-mail em
+`ADMIN_EMAIL` (env var), comparado toda vez no login/`/auth/me`. Sem
+`ADMIN_EMAIL` configurado, ninguém é admin (padrão seguro). Nunca vira coluna
+no banco nem claim gravado no JWT — o token (`JWT_EXPIRES_IN`, 7 dias) fica
+congelado com o `is_admin` de quando foi emitido, então trocar `ADMIN_EMAIL`
+só pega no próximo login.
+
+**Duas camadas de portão**: `adminOnly` (backend, `middlewares/adminOnly.js`)
+é quem protege de verdade — confere `isAdmin(user.email)` de novo no banco a
+cada request, depois do `auth`. `AdminRoute.jsx` (frontend) é só cosmético,
+redireciona pra `/mapa` se `!user?.is_admin` — não impede nada sozinho, só
+evita expor a tela pra quem não é admin.
+
+**Nunca aparece `cpf`** nas queries do painel — comentário explícito no
+controller pra não vazar o dado nem pro próprio dono da conta.
+
+**Link condicional em Sidebar e BottomNav**: o item "Painel" fica fora do
+array `NAV` compartilhado (`frontend/src/constants/nav.jsx`) — em vez disso,
+`Sidebar.jsx` (desktop) e `BottomNav.jsx` (mobile, `ADMIN_ITEM` local) cada
+um adiciona o item só quando `user?.is_admin`. Assim vira uma 4ª aba na
+barra inferior só pra quem é admin — quem não é continua com as 3 abas de
+sempre, sem mudança de layout.
+
 ## API — endpoints principais
 
 Todas as rotas vivem sob o prefixo `/api` (igual em dev e produção):
@@ -301,17 +335,24 @@ PUT    /api/vehicles/:id/default  Definir como carro padrão (auth, desmarca os 
 DELETE /api/vehicles/:id          Remover veículo (auth, só o dono)
 
 GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste posto
+
+PUT    /api/refuels/:id             Editar abastecimento (auth, só o dono; sem GPS/cooldown)
+DELETE /api/refuels/:id             Excluir abastecimento (auth, só o dono)
+
+GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin only)
 ```
 
 ## Visual
 
-- Tema dark navy (`#060d1f`) + dourado (`#f59e0b`)
+- Tema dark navy (`#060d1f`) + laranja (`#ff7a00`) — desde o rebrand pra Octa (era dourado `#f59e0b`)
 - Tokens de cor definidos em `frontend/src/index.css` (`@theme`: navy-950/900/800/750/600, accent, rep-*)
 - Cores de reputação em JS: `frontend/src/constants/reputation.js` (manter em sincronia com o @theme)
-- Fontes: Space Grotesk (títulos) + Inter (corpo)
+- Fontes: Poppins (títulos) + Inter (corpo) — era Space Grotesk antes do rebrand
+- Ícone: `OctaIcon` (SVG próprio, `frontend/src/assets/`), kit de 10 ícones da marca substituindo emoji solto
 - Mapa: CartoDB Dark Matter (dark tile gratuito)
 - Marcadores coloridos por reputação no mapa
-- Ponto dourado = posição do usuário
+- Ponto laranja = posição do usuário
+- Página de apresentação pública em `/` (antes da tela de login), separada do mapa logado
 
 ## Status atual
 
@@ -522,14 +563,29 @@ GET  /api/stations/:id/vehicle-stats  Consumo médio (km/l) por veículo neste p
 - [x] E-mail confirmado obrigatório, recuperação de senha, CPF único no
       cadastro — ver seção "Cadastro: e-mail confirmado, recuperação de
       senha, CPF único".
+- [x] **Rebrand: TanqueCerto → Octa** (nome, cores laranja, fontes Poppins+Inter,
+      ícone próprio, kit de 10 ícones da marca) — ver seção Visual. Repo/DB/
+      service mantiveram o nome antigo de propósito.
+- [x] Página de apresentação pública em `/` (antes do login) + confirmação de
+      senha no formulário de cadastro.
+- [x] Fix de rolagem nas telas de autenticação em telas baixas (mobile
+      landscape / notebooks pequenos).
+- [x] **Painel administrativo** com métricas agregadas, restrito ao e-mail em
+      `ADMIN_EMAIL` — ver seção "Painel administrativo". Link só aparece na
+      Sidebar (desktop); no mobile a rota funciona mas sem atalho na nav.
+- [x] Cadastro de posto: pino do mapa já vem marcado na posição do GPS do
+      usuário, com opção de ajustar arrastando.
+- [x] Editar e excluir abastecimentos (`PUT`/`DELETE /api/refuels/:id`,
+      inclusive trocar de veículo) — corrige registro com carro errado sem
+      distorcer o consumo médio pra sempre; sem GPS/cooldown (não se aplica a
+      correção de registro antigo). Edição inline no card do Perfil.
 
-**Estado em 2026-07-12: tudo implementado, testado, publicado em produção,
-commitado e enviado ao GitHub.** Próximo passo combinado com o usuário:
-continuar melhorando visualmente as telas de cadastro/formulário aos poucos
-(ele vai apontando ajustes conforme usa — não é pra fazer uma repaginada
-grande de uma vez). Itens de risco do roadmap (backup, rate limiting,
-validação server-side de GPS), o tutorial de onboarding e o fix do N+1
-combinados anteriormente estão todos feitos agora.
+**Estado em 2026-08-09: tudo implementado, testado, publicado em produção,
+commitado e enviado ao GitHub — árvore de trabalho limpa.** Sessão anterior
+(até 31/07) fechou o rebrand pra Octa, o painel admin e a edição de
+abastecimentos. Nada em andamento no momento; próximo passo ainda não
+combinado com o usuário — roadmap abaixo segue como candidatos, sem ordem
+definida.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —

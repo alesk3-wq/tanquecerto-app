@@ -1,9 +1,10 @@
 # Octa (ex-TanqueCerto) — Contexto do Projeto
 
 **Rebrand em 2026-07-24**: o app virou **Octa** (nome, cores, tipografia, ícone —
-ver seção Visual). É só a marca voltada pro usuário; repo (`/opt/tanquecerto`),
-banco (`tanquecerto`), service (`tanquecerto.service`) e domínio Tailscale
-mantiveram o nome antigo de propósito, sem rename de infra.
+ver seção Visual). Na máquina PS2 o repo/banco/service ficaram com o nome antigo
+de propósito (`/opt/tanquecerto`, banco `tanquecerto`, `tanquecerto.service`);
+na VPS de produção o nome novo já foi usado em tudo (`/opt/octa`, `octa.service`)
+— ver seção Deploy pra topologia completa.
 
 ## O que é
 
@@ -571,8 +572,9 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
 - [x] Fix de rolagem nas telas de autenticação em telas baixas (mobile
       landscape / notebooks pequenos).
 - [x] **Painel administrativo** com métricas agregadas, restrito ao e-mail em
-      `ADMIN_EMAIL` — ver seção "Painel administrativo". Link só aparece na
-      Sidebar (desktop); no mobile a rota funciona mas sem atalho na nav.
+      `ADMIN_EMAIL` — ver seção "Painel administrativo". Link aparece na
+      Sidebar (desktop) e como 4ª aba condicional na BottomNav (mobile),
+      só quando `user.is_admin`.
 - [x] Cadastro de posto: pino do mapa já vem marcado na posição do GPS do
       usuário, com opção de ajustar arrastando.
 - [x] Editar e excluir abastecimentos (`PUT`/`DELETE /api/refuels/:id`,
@@ -580,12 +582,17 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
       distorcer o consumo médio pra sempre; sem GPS/cooldown (não se aplica a
       correção de registro antigo). Edição inline no card do Perfil.
 
-**Estado em 2026-08-09: tudo implementado, testado, publicado em produção,
-commitado e enviado ao GitHub — árvore de trabalho limpa.** Sessão anterior
-(até 31/07) fechou o rebrand pra Octa, o painel admin e a edição de
-abastecimentos. Nada em andamento no momento; próximo passo ainda não
-combinado com o usuário — roadmap abaixo segue como candidatos, sem ordem
-definida.
+**Estado em 2026-08-09: tudo implementado, testado, publicado em produção
+(PS2 **e** VPS — ver seção Deploy), commitado e enviado ao GitHub — árvore de
+trabalho limpa nas duas máquinas.** Sessão anterior (até 31/07) fechou o
+rebrand pra Octa, o painel admin, a edição de abastecimentos, **e migrou a
+produção real pra uma VPS Hostinger** (`octa.eco.br`) — contexto que não
+tinha ficado registrado aqui, o que fez uma sessão nova (esta) gastar tempo
+debugando um "bug" (aba do painel não aparecendo no celular) que na verdade
+era só a VPS estar um deploy atrás da PS2. Corrigido: aba condicional do
+painel adicionada na BottomNav + deploy manual replicado pra VPS via
+`ssh octa-vps`. Nada em andamento agora; próximo passo ainda não combinado
+com o usuário — roadmap abaixo segue como candidatos, sem ordem definida.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -595,9 +602,43 @@ buildar).
 
 ## Deploy
 
-Ver `DEPLOY.md` — servidor Linux nativo (systemd), MariaDB, HTTPS via
-`tailscale serve` (obrigatório para o GPS funcionar no celular).
-O banco chama-se `tanquecerto` (antes era `tanquecerto_teste`).
+**Duas máquinas, não confundir** (descoberto/documentado em 2026-08-09 depois
+de uma sessão perder esse contexto e debugar um "bug" que na verdade era
+deploy desatualizado na VPS):
+
+| | PS2 (esta máquina) | VPS de produção |
+|---|---|---|
+| Uso | Onde o Claude Code roda/edita o repo; acesso Tailscale pra testar/trabalhar do celular | **Produção real** — `octa.eco.br`, e-mail transacional, usuários de verdade |
+| Path | `/opt/tanquecerto` | `/opt/octa` |
+| Service | `tanquecerto.service` | `octa.service` (mesmo padrão: systemd, `node app.js`, Express serve `frontend/dist`) |
+| Banco | MariaDB local, db `tanquecerto` | MariaDB local na VPS, db própria |
+| Acesso | Tailscale (`ps2.tailb0512a.ts.net`, tailnet only) | `https://octa.eco.br` via Cloudflare (proxied) → IP `187.77.245.160` (Hostinger) |
+| SSH a partir daqui | — | `ssh octa-vps` (alias em `~/.ssh/config`, chave `~/.ssh/octa_vps`, usuário `root`) |
+
+Histórico: começou só na PS2 via Tailscale (fase de teste, é o que o
+`DEPLOY.md` original descreve). Subiu pra VPS Hostinger em ~2026-07-31
+(mesma data do último commit antes do rebrand de infra) e virou a produção
+de verdade, com domínio próprio e e-mail configurado. A PS2 continua ativa —
+é onde a sessão do Claude Code roda e onde o usuário também acessa via
+Tailscale do celular quando precisa — mas **não é mais onde os usuários
+reais batem**; qualquer fix de UI/bug reportado pelo usuário no celular
+provavelmente é sobre a VPS, não a PS2.
+
+**Fluxo de deploy** (as duas ficam em sync manualmente, sem CI/CD):
+1. Editar/testar na PS2 (`/opt/tanquecerto`), commit + push pro GitHub
+   (`origin` = `github.com/alesk3-wq/tanquecerto-app`).
+2. `ssh octa-vps "cd /opt/octa && git pull"`.
+3. Mudança só de frontend: `cd frontend && npm run build` (Express serve o
+   `dist/` na hora, sem restart). Mudança de backend: reiniciar
+   `systemctl restart octa.service` na VPS também.
+4. Local `npm run build` na PS2 também, se quiser manter as duas máquinas
+   com o mesmo `dist/` publicado (não é estritamente necessário pro usuário
+   final, só pra consistência quando ele testar via Tailscale).
+
+Detalhes de provisionamento (systemd, MariaDB, Tailscale HTTPS) em
+`DEPLOY.md` — escrito na fase só-Tailscale, pode estar desatualizado sobre
+a VPS/Cloudflare/domínio; não confiar cegamente, conferir contra a VPS real
+se for mexer em infra.
 
 ## Próximas features planejadas (roadmap)
 

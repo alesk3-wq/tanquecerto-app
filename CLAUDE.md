@@ -614,6 +614,7 @@ deploy desatualizado na VPS):
 | Banco | MariaDB local, db `tanquecerto` | MariaDB local na VPS, db própria |
 | Acesso | Tailscale (`ps2.tailb0512a.ts.net`, tailnet only) | `https://octa.eco.br` via Cloudflare (proxied) → IP `187.77.245.160` (Hostinger) |
 | SSH a partir daqui | — | `ssh octa-vps` (alias em `~/.ssh/config`, chave `~/.ssh/octa_vps`, usuário `root`) |
+| Acesso alternativo | — | Console web root no painel da Hostinger (sem precisar de chave SSH) — usado em 2026-08-11 pra mexer no `ufw` quando o note do usuário ainda não tinha chave cadastrada na VPS |
 
 Histórico: começou só na PS2 via Tailscale (fase de teste, é o que o
 `DEPLOY.md` original descreve). Subiu pra VPS Hostinger em ~2026-07-31
@@ -639,6 +640,34 @@ Detalhes de provisionamento (systemd, MariaDB, Tailscale HTTPS) em
 `DEPLOY.md` — escrito na fase só-Tailscale, pode estar desatualizado sobre
 a VPS/Cloudflare/domínio; não confiar cegamente, conferir contra a VPS real
 se for mexer em infra.
+
+### TLS/firewall da VPS — só Cloudflare fala com a origem
+
+Na VPS, nginx (`/etc/nginx/sites-available/octa.eco.br`) termina TLS na
+porta 443 com um **certificado Origin CA da própria Cloudflare**
+(`/etc/ssl/cloudflare/octa.eco.br.pem`+`.key`) e faz proxy pra
+`127.0.0.1:3000` (Express). Esse certificado só é confiável *pra Cloudflare*
+— não é um certificado público. Isso é intencional (modo "Full (strict)" da
+Cloudflare), mas só funciona em segurança se **ninguém conseguir bater
+direto no IP da VPS** pulando a Cloudflare.
+
+**Incidente 2026-08-11**: o `ufw` liberava 80/443 pra "Anywhere" (qualquer
+IP), então dava pra conectar direto em `187.77.245.160:443` e receber o
+certificado Origin CA "errado" — foi exatamente isso que causou erro de
+certificado ao abrir o link `octa.eco.br` pelo navegador embutido do
+Instagram. Corrigido restringindo 80/443 no `ufw` só aos ranges oficiais da
+Cloudflare (`https://www.cloudflare.com/ips-v4` e `ips-v6`, 14 blocos v4 +
+7 v6) — porta 22 (SSH) continua liberada geral. **Se a Cloudflare atualizar
+esses ranges no futuro** (raro, mas acontece), o firewall da VPS precisa ser
+atualizado do mesmo jeito, senão passa a bloquear tráfego legítimo.
+
+Verificação rápida de que está correto:
+```bash
+# via Cloudflare — deve dar 200
+curl -s -o /dev/null -w "%{http_code}\n" https://octa.eco.br/api/health
+# direto no IP — deve travar/sem resposta (bloqueado)
+curl -sk --max-time 6 --resolve octa.eco.br:443:187.77.245.160 https://octa.eco.br/
+```
 
 ## Próximas features planejadas (roadmap)
 

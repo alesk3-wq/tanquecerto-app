@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
   password VARCHAR(255) NOT NULL,
   email_verified_at TIMESTAMP NULL,
   phone VARCHAR(20) NULL,
-  cpf CHAR(11) NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

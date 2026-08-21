@@ -14,18 +14,17 @@ async function register(req, res, next) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { name, email, password, phone, cpf } = req.body;
+    const { name, email, password, phone } = req.body;
 
-    const [existing] = await db.query('SELECT id, email, cpf FROM users WHERE email = ? OR cpf = ?', [email, cpf]);
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length) {
-      const conflict = existing[0].email === email ? 'E-mail já cadastrado.' : 'CPF já cadastrado.';
-      return res.status(409).json({ error: conflict });
+      return res.status(409).json({ error: 'E-mail já cadastrado.' });
     }
 
     const hash = await bcrypt.hash(password, 12);
     const [result] = await db.query(
-      'INSERT INTO users (name, email, password, phone, cpf) VALUES (?, ?, ?, ?, ?)',
-      [name, email, hash, phone || null, cpf]
+      'INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)',
+      [name, email, hash, phone || null]
     );
 
     // Cadastro NÃO loga automaticamente — login fica bloqueado até confirmar

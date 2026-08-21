@@ -85,20 +85,13 @@ npm run dev
 
 Acesse: http://localhost:5173
 
-## Cadastro: e-mail confirmado, recuperação de senha, CPF único
+## Cadastro: e-mail confirmado e recuperação de senha
 
 O quórum de confiança do app (MIN_REPORTS, MIN_STATION_FLAGS,
 MIN_DISTINCT_USERS, MIN_SERVICE_REVIEWS — todos "N usuários distintos
-concordando") quebra fácil se uma pessoa só criar várias contas. Três
-reforços no cadastro, greenfield (nada disso existia antes):
+concordando") quebra fácil se uma pessoa só criar várias contas. Dois
+reforços no cadastro:
 
-- **CPF único** (`users.cpf CHAR(11) UNIQUE`, `backend/src/utils/cpf.js` /
-  `frontend/src/utils/cpf.js`) — só valida dígito verificador (mod 11,
-  com guarda extra contra sequência repetida tipo `111.111.111-11`, que
-  passa no checksum cru mas não é CPF válido). É chave de unicidade, **não**
-  verificação de identidade (sem consulta paga na Receita Federal) — nunca
-  aparece em tela nenhuma, nem pro próprio dono. Obrigatório só pra
-  cadastro novo; contas existentes ficam com CPF NULL, sem retroatividade.
 - **E-mail confirmado obrigatório** (`users.email_verified_at TIMESTAMP
   NULL` — nullable, não boolean, mesmo padrão de `anp_synced_at`/
   `anp_compliance_flag`) — `register()` não loga mais automaticamente
@@ -106,6 +99,21 @@ reforços no cadastro, greenfield (nada disso existia antes):
   `login()` bloqueia com `403 { unverified: true }` até confirmar.
 - **Recuperação de senha** — mesmo mecanismo de token da confirmação de
   e-mail (ver abaixo).
+
+**CPF removido do cadastro (2026-08-21)**: existiu por um tempo como chave
+de unicidade (`users.cpf CHAR(11) UNIQUE`) — nunca era exibido em tela
+nenhuma, nem pro próprio dono, só servia pra impedir uma pessoa criar várias
+contas. Decisão do usuário: tirar, porque pedir CPF logo no cadastro é
+fricção pesada demais pra esse estágio (poucos usuários, app ainda sem
+marca estabelecida) e o app já tem uma barreira anti-fraude mais forte e
+menos invasiva que isso — avaliação só é possível depois de abastecer de
+verdade, com GPS confirmando presença física no posto (ver seção "Sistema
+de reputação"). Criar múltiplas contas pra fraudar continua possível, mas
+exige abastecer fisicamente em cada uma — mais caro pra quem for tentar do
+que só inventar um CPF válido (checksum é fácil de gerar). A coluna
+`cpf` ainda existe nos bancos (PS2 e VPS) com dados de quem já tinha
+cadastrado antes — não foi apagada nem migrada, só parou de ser coletada;
+avaliar isso é uma decisão separada (dado sensível parado sem uso).
 
 **Tokens de uso único** (`auth_tokens`, `backend/src/services/tokenService.js`)
 — uma tabela reutilizável pras duas trilhas (`type ENUM('password_reset',
@@ -561,9 +569,11 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
       manuais, inviável com ~46 mil postos nacionais na mesma tabela.
 - [x] Importação nacional de postos da ANP + selo de conformidade — ver seção
       "Postos importados da ANP".
-- [x] E-mail confirmado obrigatório, recuperação de senha, CPF único no
-      cadastro — ver seção "Cadastro: e-mail confirmado, recuperação de
-      senha, CPF único".
+- [x] E-mail confirmado obrigatório e recuperação de senha no cadastro —
+      ver seção "Cadastro: e-mail confirmado e recuperação de senha".
+- [x] **CPF removido do cadastro** (2026-08-21) — pedia fricção demais pro
+      estágio atual do app; a barreira física (GPS + abastecimento real)
+      já cobre o mesmo problema de forma mais leve. Ver seção acima.
 - [x] **Rebrand: TanqueCerto → Octa** (nome, cores laranja, fontes Poppins+Inter,
       ícone próprio, kit de 10 ícones da marca) — ver seção Visual. Repo/DB/
       service mantiveram o nome antigo de propósito.

@@ -3,7 +3,6 @@ const { body } = require('express-validator');
 const auth = require('../middlewares/auth');
 const { loginLimiter, registerLimiter, forgotPasswordLimiter, resendConfirmationLimiter } = require('../middlewares/authRateLimit');
 const { register, login, me, forgotPassword, resetPassword, confirmEmail, resendConfirmation } = require('../controllers/authController');
-const { isValidCPF } = require('../utils/cpf');
 
 router.post(
   '/register',
@@ -12,11 +11,6 @@ router.post(
     body('name').trim().notEmpty().withMessage('Nome é obrigatório.'),
     body('email').isEmail().withMessage('E-mail inválido.').normalizeEmail(),
     body('password').isLength({ min: 6 }).withMessage('Senha mínima de 6 caracteres.'),
-    body('cpf')
-      .customSanitizer((v) => (v || '').replace(/\D/g, ''))
-      .notEmpty().withMessage('CPF é obrigatório.')
-      .bail()
-      .custom((v) => isValidCPF(v)).withMessage('CPF inválido.'),
   ],
   register
 );

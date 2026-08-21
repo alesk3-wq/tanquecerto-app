@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import api from '../api/api';
 import ErrorMessage from '../components/ErrorMessage';
 import AuthLayout, { AuthSubmitButton, authInputClass, authLabelClass } from '../layouts/AuthLayout';
-import { isValidCPF } from '../utils/cpf';
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', cpf: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   // Fora do `form` de propósito — o form inteiro vai no POST, e a confirmação
   // é só checagem local (mesma escolha do ResetPassword.jsx).
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,10 +18,6 @@ export default function Register() {
     setError('');
     if (form.password !== confirmPassword) {
       setError('As senhas não coincidem.');
-      return;
-    }
-    if (!isValidCPF(form.cpf)) {
-      setError('CPF inválido.');
       return;
     }
     setLoading(true);
@@ -101,18 +96,6 @@ export default function Register() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Repita a senha"
-            className={authInputClass}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="reg-cpf" className={authLabelClass}>CPF</label>
-          <input
-            id="reg-cpf"
-            type="text" required
-            value={form.cpf}
-            onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-            placeholder="000.000.000-00"
             className={authInputClass}
           />
         </div>

@@ -592,17 +592,23 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
       distorcer o consumo médio pra sempre; sem GPS/cooldown (não se aplica a
       correção de registro antigo). Edição inline no card do Perfil.
 
-**Estado em 2026-08-09: tudo implementado, testado, publicado em produção
+**Estado em 2026-08-26: tudo implementado, testado, publicado em produção
 (PS2 **e** VPS — ver seção Deploy), commitado e enviado ao GitHub — árvore de
-trabalho limpa nas duas máquinas.** Sessão anterior (até 31/07) fechou o
-rebrand pra Octa, o painel admin, a edição de abastecimentos, **e migrou a
-produção real pra uma VPS Hostinger** (`octa.eco.br`) — contexto que não
-tinha ficado registrado aqui, o que fez uma sessão nova (esta) gastar tempo
-debugando um "bug" (aba do painel não aparecendo no celular) que na verdade
-era só a VPS estar um deploy atrás da PS2. Corrigido: aba condicional do
-painel adicionada na BottomNav + deploy manual replicado pra VPS via
-`ssh octa-vps`. Nada em andamento agora; próximo passo ainda não combinado
-com o usuário — roadmap abaixo segue como candidatos, sem ordem definida.
+trabalho limpa nas duas máquinas.** Sessões anteriores fecharam o rebrand
+pra Octa, o painel admin, a edição de abastecimentos, a remoção do CPF do
+cadastro, o hardening do firewall (ver "TLS/firewall da VPS"), e **migraram
+a produção pra uma segunda VPS Hostinger** (`2.25.119.168`) — a primeira
+usava menos de 10% dos recursos contratados (KVM2, sem usuários reais
+ainda), então trocou por uma menor/mais barata via setup replicado do zero
++ DNS cutover na Cloudflare, testado e confirmado no ar. **Pendência real
+deixada pra próxima sessão**: cancelar a assinatura da VPS antiga
+(`187.77.245.160`, alias `octa-vps-old`) depois de alguns dias estáveis, e
+remover o alias do `~/.ssh/config` — conferir se isso já foi feito antes de
+assumir que ainda está pendente. Fora isso, nada em andamento; próximo
+passo de produto ainda não combinado com o usuário — roadmap abaixo segue
+como candidatos, sem ordem definida. Também existe uma automação de
+Instagram em construção (pausada), documentada separadamente em
+`/opt/SERVIDOR.md` — não faz parte deste app/repo.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -622,18 +628,31 @@ deploy desatualizado na VPS):
 | Path | `/opt/tanquecerto` | `/opt/octa` |
 | Service | `tanquecerto.service` | `octa.service` (mesmo padrão: systemd, `node app.js`, Express serve `frontend/dist`) |
 | Banco | MariaDB local, db `tanquecerto` | MariaDB local na VPS, db própria |
-| Acesso | Tailscale (`ps2.tailb0512a.ts.net`, tailnet only) | `https://octa.eco.br` via Cloudflare (proxied) → IP `187.77.245.160` (Hostinger) |
+| Acesso | Tailscale (`ps2.tailb0512a.ts.net`, tailnet only) | `https://octa.eco.br` via Cloudflare (proxied) → IP `2.25.119.168` (Hostinger) |
 | SSH a partir daqui | — | `ssh octa-vps` (alias em `~/.ssh/config`, chave `~/.ssh/octa_vps`, usuário `root`) |
-| Acesso alternativo | — | Console web root no painel da Hostinger (sem precisar de chave SSH) — usado em 2026-08-11 pra mexer no `ufw` quando o note do usuário ainda não tinha chave cadastrada na VPS |
 
 Histórico: começou só na PS2 via Tailscale (fase de teste, é o que o
-`DEPLOY.md` original descreve). Subiu pra VPS Hostinger em ~2026-07-31
-(mesma data do último commit antes do rebrand de infra) e virou a produção
-de verdade, com domínio próprio e e-mail configurado. A PS2 continua ativa —
-é onde a sessão do Claude Code roda e onde o usuário também acessa via
-Tailscale do celular quando precisa — mas **não é mais onde os usuários
-reais batem**; qualquer fix de UI/bug reportado pelo usuário no celular
-provavelmente é sobre a VPS, não a PS2.
+`DEPLOY.md` original descreve). Subiu pra uma primeira VPS Hostinger em
+~2026-07-31 e virou a produção de verdade, com domínio próprio e e-mail
+configurado. A PS2 continua ativa — é onde a sessão do Claude Code roda e
+onde o usuário também acessa via Tailscale do celular quando precisa —
+mas **não é mais onde os usuários reais batem**; qualquer fix de UI/bug
+reportado pelo usuário no celular provavelmente é sobre a VPS, não a PS2.
+
+**Migração de VPS em 2026-08-26**: trocada por uma VPS menor/mais barata —
+a primeira (KVM2, 2 vCPU/8GB) estava usando menos de 10% dos recursos (só o
+usuário de teste, ~4 abastecimentos reais, nenhum usuário externo ainda),
+sem sentido pagar por capacidade ociosa enquanto a divulgação não traz
+volume. Setup replicado do zero (Node 24, MariaDB 10.11, nginx + mesmo
+certificado Cloudflare Origin CA, firewall **já nascendo restrito só à
+Cloudflare**, systemd, crons de backup/ANP), banco migrado via
+`mysqldump`/restore (schema + dados: postos da ANP, usuário, abastecimentos).
+Testado ponta a ponta (inclusive com a VPS antiga desligada de propósito,
+pra confirmar que nada mais dependia dela) antes de trocar o DNS. A VPS
+antiga (`187.77.245.160`, alias `octa-vps-old` em `~/.ssh/config`) ficou
+ligada como rede de segurança por alguns dias — **cancelar a assinatura na
+Hostinger e remover o alias depois de confirmar estabilidade** (isso ainda
+não foi feito na sessão que escreveu esta nota — conferir se já rolou).
 
 **Fluxo de deploy** (as duas ficam em sync manualmente, sem CI/CD):
 1. Editar/testar na PS2 (`/opt/tanquecerto`), commit + push pro GitHub
@@ -661,14 +680,17 @@ porta 443 com um **certificado Origin CA da própria Cloudflare**
 Cloudflare), mas só funciona em segurança se **ninguém conseguir bater
 direto no IP da VPS** pulando a Cloudflare.
 
-**Incidente 2026-08-11**: o `ufw` liberava 80/443 pra "Anywhere" (qualquer
-IP), então dava pra conectar direto em `187.77.245.160:443` e receber o
+**Incidente original 2026-08-11** (na VPS antiga, `187.77.245.160`, desde
+então migrada — ver nota de migração acima): o `ufw` liberava 80/443 pra
+"Anywhere" (qualquer IP), então dava pra conectar direto no IP e receber o
 certificado Origin CA "errado" — foi exatamente isso que causou erro de
 certificado ao abrir o link `octa.eco.br` pelo navegador embutido do
 Instagram. Corrigido restringindo 80/443 no `ufw` só aos ranges oficiais da
-Cloudflare (`https://www.cloudflare.com/ips-v4` e `ips-v6`, 14 blocos v4 +
-7 v6) — porta 22 (SSH) continua liberada geral. **Se a Cloudflare atualizar
-esses ranges no futuro** (raro, mas acontece), o firewall da VPS precisa ser
+Cloudflare (`https://www.cloudflare.com/ips-v4` e `ips-v6`). **A VPS nova
+(2.25.119.168) já nasceu com essa restrição desde o primeiro dia**, então
+esse incidente específico não deveria se repetir — mas se a Cloudflare
+atualizar esses ranges no futuro (já aconteceu uma vez, ganhou um bloco v4 a
+mais entre 2026-08-11 e 2026-08-26), o firewall da VPS precisa ser
 atualizado do mesmo jeito, senão passa a bloquear tráfego legítimo.
 
 Verificação rápida de que está correto:
@@ -676,7 +698,7 @@ Verificação rápida de que está correto:
 # via Cloudflare — deve dar 200
 curl -s -o /dev/null -w "%{http_code}\n" https://octa.eco.br/api/health
 # direto no IP — deve travar/sem resposta (bloqueado)
-curl -sk --max-time 6 --resolve octa.eco.br:443:187.77.245.160 https://octa.eco.br/
+curl -sk --max-time 6 --resolve octa.eco.br:443:2.25.119.168 https://octa.eco.br/
 ```
 
 ## Próximas features planejadas (roadmap)

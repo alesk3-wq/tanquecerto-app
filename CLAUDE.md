@@ -591,8 +591,9 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
       inclusive trocar de veículo) — corrige registro com carro errado sem
       distorcer o consumo médio pra sempre; sem GPS/cooldown (não se aplica a
       correção de registro antigo). Edição inline no card do Perfil.
-- [x] **Política de privacidade + exclusão de conta** (2026-09-09, preparação
-      pra Google Play — ver seção "Publicação na Google Play"). Páginas
+- [x] **Política de privacidade + exclusão de conta** (2026-09-09, no ar em
+      produção — preparação pra Google Play, ver seção "Publicação na Google
+      Play"). Páginas
       estáticas `frontend/public/privacidade.html` e `.../excluir-conta.html`
       (HTML puro, sem depender de JS, visual Octa inline), servidas pelo
       `express.static` do build. `app.js` ganhou aliases de URL limpa em
@@ -620,12 +621,20 @@ ainda), então trocou por uma menor/mais barata via setup replicado do zero
 + DNS cutover na Cloudflare, testado e confirmado no ar. **Pendência real
 deixada pra próxima sessão**: cancelar a assinatura da VPS antiga
 (`187.77.245.160`, alias `octa-vps-old`) depois de alguns dias estáveis, e
-remover o alias do `~/.ssh/config` — conferir se isso já foi feito antes de
-assumir que ainda está pendente. Fora isso, nada em andamento; próximo
-passo de produto ainda não combinado com o usuário — roadmap abaixo segue
-como candidatos, sem ordem definida. Também existe uma automação de
-Instagram em construção (pausada), documentada separadamente em
-`/opt/SERVIDOR.md` — não faz parte deste app/repo.
+remover o alias do `~/.ssh/config`. **Atualização 2026-09-09**: o usuário
+confirmou que a VPS antiga (`187.77.245.160`) segue de pé de propósito
+rodando um jogo de teste até o dia de cancelar — não mexer nela nem no
+alias.
+
+**Em andamento (desde 2026-09-09): publicação na Google Play** — ver seção
+"Publicação na Google Play (TWA)". Primeira etapa concluída e no ar em
+produção: política de privacidade (`/privacidade`) e exclusão de conta
+(`/excluir-conta` + `DELETE /api/auth/me`). E-mail `contato@octa.eco.br`
+já criado pelo usuário (Cloudflare Email Routing → Gmail dele).
+
+Também existe uma automação de Instagram em construção (pausada),
+documentada separadamente em `/opt/SERVIDOR.md` — não faz parte deste
+app/repo.
 
 **Nota operacional:** o usuário disse que pode parar/reiniciar o `tanquecerto.service`
 direto pra testar, sem precisar montar instância isolada em `127.0.0.1` toda vez —
@@ -730,8 +739,9 @@ site ao vivo num app Android fino, valida por Digital Asset Links, gera um
 Progresso:
 - [x] **Política de privacidade** no ar (`/privacidade`) e **exclusão de conta**
       in-app + web (`/excluir-conta`, `DELETE /api/auth/me`) — ver entrada no
-      "Status atual".
-- [ ] Criar o e-mail **`contato@octa.eco.br`** (citado nas duas páginas).
+      "Status atual". Deploy PS2 + VPS em 2026-09-09.
+- [x] E-mail **`contato@octa.eco.br`** criado pelo usuário (Cloudflare Email
+      Routing → Gmail).
 - [ ] `assetlinks.json` em `https://octa.eco.br/.well-known/` com o
       SHA-256 da chave de assinatura (depende da chave existir).
 - [ ] Instalar Bubblewrap na PS2 (precisa de JDK 17 + Android SDK),

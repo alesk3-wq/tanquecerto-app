@@ -15,7 +15,7 @@ Criado em 2026-09-10. Atualizar conforme cada etapa é concluída.
 | Item | Valor | Observação |
 |---|---|---|
 | Nome na loja / launcher | **Octa** | máx. 30 caracteres |
-| **Package name** (application ID) | **`br.eco.octa`** (recomendado) | **IMUTÁVEL após o 1º upload.** Ver nota abaixo. |
+| **Package name** (application ID) | **`br.eco.octa`** ✅ confirmado (2026-09-10) | **IMUTÁVEL após o 1º upload.** Ver nota abaixo. |
 | Conta de desenvolvedor | **Pessoal** | Sujeita ao teste fechado de **12 testadores por 14 dias** antes de liberar produção (regra pra contas pessoais criadas após nov/2023 — confirmar em *Play Console → Configurações → Detalhes do desenvolvedor*). |
 | Categoria | **Mapas e navegação** | alternativa: "Automóveis e veículos" |
 | Preço | Grátis, sem anúncios, sem compras no app | |
@@ -254,7 +254,8 @@ declarar IP isoladamente quando não é usado para rastreamento — não declara
 - [ ] `assetlinks.json` em `/.well-known/` (depois da 1ª subida do `.aab`)
 
 **Build**
-- [ ] Confirmar package name → `br.eco.octa`
+- [x] Confirmar package name → `br.eco.octa`
+- [x] Criar o app no Play Console (nome "Octa", pt-BR, grátis)
 - [ ] Instalar Bubblewrap na PS2 (JDK 17 + Android SDK)
 - [ ] `bubblewrap init` (nome "Octa", cores `#060d1f`, package `br.eco.octa`)
 - [ ] Conferir que não entrou permissão de localização no `twa-manifest.json`

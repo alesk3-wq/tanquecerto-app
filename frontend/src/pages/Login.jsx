@@ -65,6 +65,10 @@ export default function Login() {
           <Link to="/instalar" className="text-slate-600 hover:text-accent text-xs mt-2 inline-block">
             📲 Instalar o app no celular
           </Link>
+          <br />
+          <a href="/privacidade" className="text-slate-700 hover:text-accent text-xs mt-2 inline-block">
+            Política de privacidade
+          </a>
         </>
       }
     >

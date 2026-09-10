@@ -39,6 +39,16 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrad
 if (isProduction) {
   const dist = path.join(__dirname, '../frontend/dist');
   app.use(express.static(dist));
+
+  // URLs limpas para páginas estáticas públicas (política de privacidade,
+  // exclusão de conta) — precisam de endereço estável e sem depender de JS
+  // porque são citadas na Google Play Console. O arquivo .html mora em
+  // frontend/public/ e o express.static acima já serve /privacidade.html;
+  // estes aliases só tiram a extensão. Precisa vir antes do fallback SPA.
+  app.get('/privacidade', (req, res) => res.sendFile(path.join(dist, 'privacidade.html')));
+  app.get('/politica-de-privacidade', (req, res) => res.redirect(301, '/privacidade'));
+  app.get('/excluir-conta', (req, res) => res.sendFile(path.join(dist, 'excluir-conta.html')));
+
   app.get('/*splat', (req, res) => res.sendFile(path.join(dist, 'index.html')));
 }
 

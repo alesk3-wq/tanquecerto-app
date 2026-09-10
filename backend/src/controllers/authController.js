@@ -91,6 +91,34 @@ async function me(req, res, next) {
   }
 }
 
+// Exclusão da própria conta (LGPD art. 18 / exigência da Google Play para
+// apps com cadastro). Pede a senha de novo como confirmação — evita que
+// alguém com o aparelho desbloqueado apague a conta do dono.
+async function deleteAccount(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { password } = req.body;
+    const [rows] = await db.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    const valid = await bcrypt.compare(password, rows[0].password);
+    if (!valid) return res.status(401).json({ error: 'Senha incorreta.' });
+
+    // ON DELETE CASCADE cobre auth_tokens, reports (e report_votes/report_tags),
+    // favorites, vehicles, refuels, service_reviews, station_flags e fuel_prices.
+    // stations.created_by é ON DELETE SET NULL — o posto continua no mapa sem
+    // vínculo com a conta (mesmo "usuário deletado" que o resto do código já
+    // assume). Ver /excluir-conta.html e a seção 11 de /privacidade.html.
+    await db.query('DELETE FROM users WHERE id = ?', [req.user.id]);
+
+    res.json({ message: 'Conta excluída.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Sempre responde a mesma mensagem genérica, exista ou não o e-mail —
 // evita que alguém descubra quais e-mails estão cadastrados tentando um por um.
 async function forgotPassword(req, res, next) {
@@ -195,4 +223,4 @@ async function resendConfirmation(req, res, next) {
   }
 }
 
-module.exports = { register, login, me, forgotPassword, resetPassword, confirmEmail, resendConfirmation };
+module.exports = { register, login, me, deleteAccount, forgotPassword, resetPassword, confirmEmail, resendConfirmation };

@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { body } = require('express-validator');
 const auth = require('../middlewares/auth');
 const { loginLimiter, registerLimiter, forgotPasswordLimiter, resendConfirmationLimiter } = require('../middlewares/authRateLimit');
-const { register, login, me, forgotPassword, resetPassword, confirmEmail, resendConfirmation } = require('../controllers/authController');
+const { register, login, me, deleteAccount, forgotPassword, resetPassword, confirmEmail, resendConfirmation } = require('../controllers/authController');
 
 router.post(
   '/register',
@@ -55,5 +55,12 @@ router.post(
 );
 
 router.get('/me', auth, me);
+
+router.delete(
+  '/me',
+  auth,
+  [body('password').notEmpty().withMessage('Confirme a senha para excluir a conta.')],
+  deleteAccount
+);
 
 module.exports = router;

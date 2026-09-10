@@ -127,7 +127,16 @@ export default function Landing() {
           >
             📲 Instalar o app no celular
           </Link>
-          <p className="text-slate-700 text-xs mt-4">octa.eco.br</p>
+          <p className="mt-4 text-xs text-slate-600">
+            <a href="/privacidade" className="hover:text-slate-400 hover:underline">
+              Política de privacidade
+            </a>
+            <span className="mx-2">·</span>
+            <a href="/excluir-conta" className="hover:text-slate-400 hover:underline">
+              Excluir conta
+            </a>
+          </p>
+          <p className="text-slate-700 text-xs mt-3">octa.eco.br</p>
         </footer>
 
       </div>

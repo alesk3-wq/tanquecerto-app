@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Privacidade — Octa</title>
+  <meta name="description" content="Como o Octa coleta, usa, compartilha e protege os seus dados pessoais." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://octa.eco.br/privacidade" />
+  <link rel="icon" type="image/png" href="/icons/favicon.png" />
+  <style>
+    :root {
+      --navy-950: #060d1f;
+      --navy-900: #0b1428;
+      --navy-800: #111d38;
+      --navy-600: #24345c;
+      --accent: #ff7a00;
+      --text: #dbe2f0;
+      --text-dim: #9aa7c2;
+      --text-faint: #6b7794;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--navy-950);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.65;
+      font-size: 16px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 72px; }
+    header.top { text-align: center; margin-bottom: 40px; }
+    .logo {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: rgba(255,122,0,0.12);
+      border: 1.5px solid rgba(255,122,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 30px; font-weight: 700; color: var(--accent);
+    }
+    h1 { font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--text-dim); font-size: 0.95rem; margin: 0; }
+    .dates { color: var(--text-faint); font-size: 0.82rem; margin-top: 10px; }
+    h2 {
+      font-size: 1.18rem; margin: 40px 0 12px; padding-top: 8px;
+      color: #fff; letter-spacing: -0.01em;
+      border-top: 1px solid var(--navy-600);
+    }
+    h2:first-of-type { border-top: none; }
+    h3 { font-size: 1rem; margin: 22px 0 6px; color: #fff; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); }
+    a:hover { text-decoration: underline; }
+    ul { padding-left: 22px; margin: 10px 0; }
+    li { margin: 6px 0; }
+    strong { color: #fff; }
+    .callout {
+      background: var(--navy-800);
+      border: 1px solid var(--navy-600);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 18px 0;
+    }
+    .callout p { margin: 6px 0; color: var(--text-dim); font-size: 0.95rem; }
+    .callout p:first-child { margin-top: 0; }
+    .callout p:last-child { margin-bottom: 0; }
+    .tbl-scroll { overflow-x: auto; margin: 16px 0; -webkit-overflow-scrolling: touch; }
+    table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 10px 12px; border: 1px solid var(--navy-600); vertical-align: top; }
+    th { background: var(--navy-800); color: #fff; font-weight: 600; }
+    td { color: var(--text-dim); }
+    footer.foot {
+      margin-top: 56px; padding-top: 20px;
+      border-top: 1px solid var(--navy-600);
+      text-align: center; color: var(--text-faint); font-size: 0.85rem;
+    }
+    footer.foot a { color: var(--text-dim); }
+    @media print {
+      body { background: #fff; color: #000; }
+      a { color: #000; }
+      h2, h3, strong, th { color: #000; }
+      .logo { color: #000; border-color: #999; background: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="logo" aria-hidden="true">O</div>
+      <h1>Política de Privacidade</h1>
+      <p class="sub">Octa — o Waze dos postos de combustível · <a href="https://octa.eco.br">octa.eco.br</a></p>
+      <p class="dates">Vigência: 9 de setembro de 2026 · Última atualização: 9 de setembro de 2026</p>
+    </header>
+
+    <p>
+      Esta Política de Privacidade explica como o <strong>Octa</strong> (&ldquo;Octa&rdquo;,
+      &ldquo;aplicativo&rdquo;, &ldquo;nós&rdquo;) coleta, utiliza, compartilha e protege os seus
+      dados pessoais quando você usa o site e o aplicativo disponíveis em
+      <a href="https://octa.eco.br">octa.eco.br</a> e na loja de aplicativos. O Octa é uma
+      plataforma colaborativa em que motoristas registram abastecimentos e avaliam a
+      qualidade do combustível e do atendimento dos postos, formando uma reputação
+      comunitária.
+    </p>
+    <p>
+      O tratamento de dados descrito aqui segue a <strong>Lei Geral de Proteção de Dados
+      Pessoais</strong> (Lei nº 13.709/2018 &ndash; LGPD).
+    </p>
+
+    <div class="callout">
+      <p><strong>Resumo rápido</strong></p>
+      <p>• Para criar conta pedimos <strong>nome, e-mail e senha</strong>. A senha é guardada de forma cifrada (hash).</p>
+      <p>• Usamos a sua <strong>localização precisa (GPS)</strong> para mostrar postos próximos e para confirmar que você está mesmo no posto ao registrar um abastecimento. A coleta acontece durante o uso do app, com a sua permissão.</p>
+      <p>• Você registra dados de <strong>veículos e abastecimentos</strong> (litros, valor, quilometragem) e <strong>avaliações</strong> de postos.</p>
+      <p>• <strong>Não vendemos</strong> os seus dados, <strong>não exibimos anúncios</strong> e <strong>não usamos rastreadores de publicidade</strong>.</p>
+      <p>• Suas avaliações aparecem para a comunidade apenas de forma <strong>agregada</strong> e acima de um número mínimo de contribuições &mdash; nunca como uma avaliação individual identificada.</p>
+      <p>• Você pode <strong>excluir a sua conta e os seus dados</strong> a qualquer momento (veja a seção &ldquo;Exclusão de conta e de dados&rdquo;).</p>
+    </div>
+
+    <h2>1. Quem é o responsável pelo tratamento</h2>
+    <p>
+      O responsável pelo tratamento dos dados pessoais coletados pelo Octa é o
+      desenvolvedor e operador do serviço Octa. Para qualquer assunto relacionado a
+      privacidade e proteção de dados, incluindo o exercício dos seus direitos e o
+      contato com o Encarregado (DPO), utilize o e-mail:
+    </p>
+    <p><strong><a href="mailto:contato@octa.eco.br">contato@octa.eco.br</a></strong></p>
+
+    <h2>2. Dados que coletamos</h2>
+
+    <h3>2.1. Dados que você fornece diretamente</h3>
+    <ul>
+      <li><strong>Cadastro:</strong> nome, endereço de e-mail e senha. Registramos também a data de confirmação do e-mail.</li>
+      <li><strong>Veículos:</strong> marca, modelo, ano, tipo de combustível padrão e qual é o carro principal.</li>
+      <li><strong>Abastecimentos:</strong> posto, veículo, data, litros, valor total, preço por litro, quilometragem do odômetro, indicação de tanque cheio e uma observação opcional.</li>
+      <li><strong>Avaliações e contribuições:</strong> classificação do combustível (positivo, suspeito ou negativo), sintomas selecionados de uma lista fechada (ex.: &ldquo;engasgo&rdquo;, &ldquo;cheiro/cor&rdquo;), avaliações de atendimento, preços informados manualmente, marcação de postos como favoritos e sinalização de que um posto não existe.</li>
+      <li><strong>Cadastro de postos:</strong> quando você adiciona um posto, guardamos o nome, o endereço e as coordenadas do ponto que você marcou no mapa, associados à sua conta.</li>
+      <li><strong>Mensagens:</strong> o conteúdo de e-mails que você nos enviar.</li>
+    </ul>
+
+    <h3>2.2. Localização</h3>
+    <div class="callout">
+      <p>O Octa coleta a sua <strong>localização precisa</strong> (GPS do dispositivo), sempre com a sua permissão e enquanto o app está em uso (primeiro plano). Nunca coletamos localização em segundo plano.</p>
+    </div>
+    <p>A localização é usada nos seguintes momentos:</p>
+    <ul>
+      <li><strong>Mostrar postos próximos</strong> no mapa e na lista, e centralizar o mapa na sua posição.</li>
+      <li><strong>Confirmar presença no posto:</strong> ao registrar um abastecimento ou sinalizar um posto, o app verifica se você está a até 200&nbsp;metros do posto. Essa checagem é refeita no servidor: as coordenadas enviadas são comparadas com a posição real do posto e o registro é recusado se estiver longe. É uma medida <strong>antifraude</strong>, para que só quem esteve fisicamente no posto possa avaliá-lo.</li>
+      <li><strong>Preencher o endereço</strong> de um posto novo automaticamente (veja o item 4 sobre o serviço de geocodificação).</li>
+    </ul>
+    <p>
+      As coordenadas informadas ao registrar um abastecimento ou cadastrar um posto são
+      <strong>armazenadas no servidor</strong> junto com esse registro. A posição usada apenas
+      para exibir o mapa não é armazenada no servidor (fica somente no seu dispositivo, veja
+      o item 7).
+    </p>
+
+    <h3>2.3. Dados coletados automaticamente</h3>
+    <ul>
+      <li><strong>Endereço IP:</strong> processado a cada requisição para entregar o serviço e, de forma temporária, para limitar tentativas repetidas de login e cadastro (proteção contra abuso). Não mantemos um histórico persistente de navegação por IP.</li>
+      <li><strong>Dados técnicos da requisição:</strong> tipo de navegador/dispositivo e informações padrão enviadas por qualquer cliente HTTP.</li>
+      <li><strong>Armazenamento local no dispositivo:</strong> veja o item 7.</li>
+    </ul>
+
+    <h3>2.4. Dado legado (CPF)</h3>
+    <p>
+      Em uma versão anterior do app, o CPF era solicitado no cadastro como chave para
+      impedir a criação de múltiplas contas. <strong>O CPF não é mais coletado</strong> desde
+      agosto de 2026 e nunca foi exibido em nenhuma tela. Para as contas criadas naquele
+      período, o CPF ainda consta no banco de dados e não é utilizado para nenhuma
+      finalidade. Você pode solicitar a exclusão desse dado pelo e-mail de contato, e ele é
+      removido junto com a conta caso você a exclua.
+    </p>
+
+    <h2>3. Para que usamos os dados e com qual base legal</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Finalidade</th><th>Base legal (LGPD)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Criar e manter a sua conta; autenticar o seu acesso; permitir registrar abastecimentos, veículos e avaliações.</td><td>Execução de contrato e procedimentos preliminares (art. 7º, V).</td></tr>
+          <tr><td>Acessar a localização precisa para mostrar postos próximos e preencher endereços.</td><td>Consentimento (art. 7º, I), concedido na permissão de localização do sistema.</td></tr>
+          <tr><td>Enviar e-mails de confirmação de cadastro e de redefinição de senha.</td><td>Execução de contrato (art. 7º, V) e consentimento (art. 7º, I).</td></tr>
+          <tr><td>Confirmar presença física no posto, aplicar intervalos entre registros e limitar tentativas de login/cadastro (prevenção a fraude e abuso).</td><td>Legítimo interesse (art. 7º, IX) e prevenção à fraude / segurança do titular (art. 11, II, &ldquo;g&rdquo;, quando aplicável).</td></tr>
+          <tr><td>Calcular a reputação dos postos e o consumo médio (km/l) de forma agregada e comunitária.</td><td>Legítimo interesse (art. 7º, IX), com salvaguardas de agregação e limiar mínimo de contribuições.</td></tr>
+          <tr><td>Operar, manter, depurar e melhorar o serviço; responder a contatos de suporte.</td><td>Legítimo interesse (art. 7º, IX).</td></tr>
+          <tr><td>Cumprir obrigações legais e responder a autoridades competentes.</td><td>Cumprimento de obrigação legal ou regulatória (art. 7º, II).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Quando o tratamento se baseia em <strong>legítimo interesse</strong>, ele se limita ao
+      necessário para a finalidade e leva em conta as suas expectativas e direitos. Você
+      pode solicitar mais informações ou se opor pelo e-mail de contato.
+    </p>
+
+    <h2>4. Compartilhamento com terceiros (operadores e serviços)</h2>
+    <p>
+      O Octa <strong>não vende e não aluga</strong> dados pessoais, e <strong>não compartilha</strong>
+      dados com corretores de dados ou redes de publicidade. Compartilhamos o mínimo
+      necessário com prestadores que nos ajudam a operar o serviço:
+    </p>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Serviço</th><th>O que recebe</th><th>Para quê</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Hostinger (hospedagem do servidor)</td><td>Todos os dados do app, armazenados no servidor</td><td>Hospedar a aplicação e o banco de dados</td></tr>
+          <tr><td>Cloudflare (CDN / proxy / DNS)</td><td>Endereço IP e metadados da conexão</td><td>Entrega do site, cache e proteção contra ataques</td></tr>
+          <tr><td>Resend (<a href="https://resend.com/legal/privacy-policy">resend.com</a>)</td><td>Seu endereço de e-mail e o conteúdo das mensagens transacionais</td><td>Enviar e-mails de confirmação de cadastro e de redefinição de senha</td></tr>
+          <tr><td>OpenStreetMap / Nominatim (<a href="https://osmfoundation.org/wiki/Privacy_Policy">osmfoundation.org</a>)</td><td>As coordenadas do ponto ao cadastrar um posto</td><td>Converter coordenadas em um endereço legível (geocodificação reversa)</td></tr>
+          <tr><td>CARTO / OpenStreetMap (camadas do mapa)</td><td>Endereço IP e a área do mapa que está sendo exibida</td><td>Fornecer as imagens de fundo do mapa</td></tr>
+          <tr><td>Cloudflare cdnjs</td><td>Endereço IP</td><td>Entregar ícones estáticos do mapa</td></tr>
+          <tr><td>Google Maps (<a href="https://policies.google.com/privacy">policies.google.com</a>)</td><td>Sua posição de origem e as coordenadas do posto de destino</td><td>Abrir a rota até o posto, quando você toca em &ldquo;Rota&rdquo; &mdash; abre o Google Maps em uma nova aba</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Também podemos divulgar dados se exigido por lei, ordem judicial ou autoridade
+      competente, ou para proteger direitos, a segurança dos usuários e a integridade do
+      serviço.
+    </p>
+
+    <h2>5. Conteúdo público e comunidade</h2>
+    <p>
+      O Octa é colaborativo: as suas contribuições ajudam outros motoristas. No entanto:
+    </p>
+    <ul>
+      <li>As avaliações de combustível são exibidas apenas de forma <strong>agregada</strong> na página do posto. O app <strong>não mostra avaliações individuais</strong> nem o nome de quem avaliou.</li>
+      <li>O resumo de sintomas mais citados de um posto só aparece quando há <strong>duas ou mais menções</strong> ao mesmo sintoma.</li>
+      <li>A média de consumo (km/l) exibida na página de um posto exige contribuições de, no mínimo, <strong>três usuários diferentes</strong> com o mesmo perfil de veículo.</li>
+      <li>A sinalização de &ldquo;posto não existe&rdquo; só tem efeito com um quórum de <strong>três usuários</strong>.</li>
+      <li>Um posto cadastrado por você fica associado à sua conta internamente, mas o app não exibe publicamente quem o cadastrou.</li>
+    </ul>
+    <p>
+      O seu histórico pessoal de abastecimentos, veículos e avaliações é visível
+      <strong>apenas para você</strong>, na tela de perfil. Uma pessoa com acesso administrativo
+      ao serviço pode consultar métricas agregadas e os registros mais recentes para fins
+      de operação e moderação; o CPF nunca é exibido nesse painel.
+    </p>
+
+    <h2>6. Cookies e armazenamento local</h2>
+    <p>
+      O Octa <strong>não usa cookies de publicidade nem de rastreamento de terceiros</strong>.
+      Utilizamos o armazenamento local do navegador (<em>localStorage</em>) do seu
+      dispositivo para:
+    </p>
+    <ul>
+      <li>guardar o <strong>token de autenticação</strong> que mantém você conectado;</li>
+      <li>lembrar a sua <strong>última posição conhecida</strong>, para o mapa carregar mais rápido;</li>
+      <li>lembrar preferências de interface, como dicas já dispensadas e avisos já exibidos no dia.</li>
+    </ul>
+    <p>
+      Esses dados ficam no seu dispositivo e são apagados ao sair da conta ou ao limpar os
+      dados do site/app.
+    </p>
+
+    <h2>7. Por quanto tempo guardamos</h2>
+    <ul>
+      <li><strong>Conta e conteúdo</strong> (perfil, veículos, abastecimentos, avaliações): enquanto a sua conta existir.</li>
+      <li><strong>Após a exclusão da conta:</strong> os seus dados pessoais e o seu histórico são apagados de forma permanente dos sistemas ativos. A reputação dos postos é recalculada sem as suas contribuições.</li>
+      <li><strong>Cópias de segurança (backups):</strong> mantidas por até <strong>14 dias</strong> e depois sobrescritas na rotação. Um dado excluído pode permanecer nos backups por esse período antes de desaparecer definitivamente.</li>
+      <li><strong>Dados de limitação de tentativas (IP):</strong> mantidos por poucos minutos a, no máximo, uma hora.</li>
+      <li><strong>Tokens de e-mail</strong> (confirmação e redefinição de senha): expiram automaticamente e são invalidados após o uso.</li>
+    </ul>
+
+    <h2>8. Transferência internacional de dados</h2>
+    <p>
+      Alguns dos prestadores citados no item 4 (por exemplo, Resend, Google, Cloudflare e a
+      Fundação OpenStreetMap) processam dados em servidores localizados fora do Brasil. Nesses
+      casos, a transferência é feita ao amparo do art. 33 da LGPD, buscando garantir grau de
+      proteção adequado e limitação ao estritamente necessário.
+    </p>
+
+    <h2>9. Segurança</h2>
+    <ul>
+      <li>Todo o tráfego entre o seu dispositivo e o Octa é protegido por <strong>HTTPS/TLS</strong>.</li>
+      <li>Senhas são guardadas apenas como <strong>hash</strong> (bcrypt); não temos acesso à sua senha em texto.</li>
+      <li>Tokens de e-mail são guardados apenas como hash (SHA-256).</li>
+      <li>O acesso direto ao servidor de origem é restrito por firewall; o acesso administrativo é limitado a um endereço de e-mail específico.</li>
+    </ul>
+    <p>
+      Nenhum sistema é completamente seguro. Se identificarmos um incidente de segurança que
+      possa acarretar risco relevante aos seus direitos, comunicaremos você e a Autoridade
+      Nacional de Proteção de Dados (ANPD) conforme a LGPD.
+    </p>
+
+    <h2>10. Seus direitos como titular</h2>
+    <p>Nos termos do art. 18 da LGPD, você pode solicitar a qualquer momento:</p>
+    <ul>
+      <li>confirmação de que tratamos os seus dados e acesso a eles;</li>
+      <li>correção de dados incompletos, inexatos ou desatualizados;</li>
+      <li>anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade com a lei;</li>
+      <li>portabilidade dos seus dados a outro fornecedor, mediante requisição;</li>
+      <li>eliminação dos dados tratados com base no seu consentimento;</li>
+      <li>informação sobre com quem compartilhamos os seus dados;</li>
+      <li>informação sobre a possibilidade de não fornecer consentimento e as consequências disso;</li>
+      <li>revogação do consentimento.</li>
+    </ul>
+    <p>
+      Para exercer qualquer desses direitos, escreva para
+      <a href="mailto:contato@octa.eco.br">contato@octa.eco.br</a>. Podemos precisar confirmar a
+      sua identidade antes de atender ao pedido. Responderemos no menor prazo possível. Você
+      também tem o direito de apresentar reclamação à <strong>ANPD</strong>
+      (<a href="https://www.gov.br/anpd">gov.br/anpd</a>).
+    </p>
+    <p>
+      Parte desses direitos você já exerce diretamente no app: editar o perfil e os veículos,
+      editar e excluir abastecimentos, e excluir a conta inteira.
+    </p>
+
+    <h2>11. Exclusão de conta e de dados</h2>
+    <p>Você pode excluir a sua conta e os dados associados de duas formas:</p>
+    <ul>
+      <li><strong>No app:</strong> acesse <em>Perfil</em> e use a opção <em>&ldquo;Excluir minha conta&rdquo;</em>. A ação pede confirmação e é irreversível.</li>
+      <li><strong>Por e-mail:</strong> envie um pedido para <a href="mailto:contato@octa.eco.br">contato@octa.eco.br</a> a partir do endereço cadastrado, ou informando o e-mail da conta. Instruções também na página <a href="https://octa.eco.br/excluir-conta">octa.eco.br/excluir-conta</a>.</li>
+    </ul>
+    <p>
+      A exclusão remove permanentemente o seu perfil, veículos, abastecimentos, avaliações,
+      votos, favoritos e o CPF legado, se houver. Os postos que você cadastrou permanecem no
+      mapa &mdash; porque outros motoristas podem ter registrado abastecimentos neles &mdash;
+      mas deixam de ser associados à sua conta. Cópias em backup são eliminadas em até 14 dias,
+      conforme o item 7. A reputação dos postos passa a ser calculada sem as suas contribuições.
+    </p>
+
+    <h2>12. Crianças e adolescentes</h2>
+    <p>
+      O Octa não é direcionado a menores de 18 anos e não coletamos intencionalmente dados de
+      crianças e adolescentes. Se tomarmos conhecimento de que um menor criou uma conta,
+      removeremos os dados. Se você é responsável por um menor e acredita que ele nos forneceu
+      dados, entre em contato pelo e-mail acima.
+    </p>
+
+    <h2>13. Alterações nesta Política</h2>
+    <p>
+      Podemos atualizar esta Política para refletir mudanças no serviço ou na legislação. A
+      versão vigente fica sempre nesta página, com a data de &ldquo;última atualização&rdquo; no
+      topo. Mudanças relevantes serão comunicadas no app ou por e-mail antes de entrarem em
+      vigor.
+    </p>
+
+    <h2>14. Contato</h2>
+    <p>
+      Dúvidas, solicitações ou reclamações sobre privacidade e proteção de dados:<br />
+      <strong><a href="mailto:contato@octa.eco.br">contato@octa.eco.br</a></strong>
+    </p>
+
+    <footer class="foot">
+      <p><a href="https://octa.eco.br">octa.eco.br</a> &nbsp;·&nbsp; <a href="/">Voltar ao app</a></p>
+      <p>&copy; 2026 Octa</p>
+    </footer>
+  </div>
+</body>
+</html>

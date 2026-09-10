@@ -591,6 +591,23 @@ GET  /api/admin/metrics             Métricas agregadas do painel (auth + admin 
       inclusive trocar de veículo) — corrige registro com carro errado sem
       distorcer o consumo médio pra sempre; sem GPS/cooldown (não se aplica a
       correção de registro antigo). Edição inline no card do Perfil.
+- [x] **Política de privacidade + exclusão de conta** (2026-09-09, preparação
+      pra Google Play — ver seção "Publicação na Google Play"). Páginas
+      estáticas `frontend/public/privacidade.html` e `.../excluir-conta.html`
+      (HTML puro, sem depender de JS, visual Octa inline), servidas pelo
+      `express.static` do build. `app.js` ganhou aliases de URL limpa em
+      produção: `/privacidade`, `/politica-de-privacidade` (301 → `/privacidade`)
+      e `/excluir-conta`, antes do fallback SPA. Exclusão de conta in-app:
+      `DELETE /api/auth/me` (auth + confirma a senha no body → 401 "Senha
+      incorreta." se errada) faz `DELETE FROM users` e o `ON DELETE CASCADE`
+      do schema limpa tudo (auth_tokens, reports/report_votes/report_tags,
+      favorites, vehicles, refuels, service_reviews, station_flags,
+      fuel_prices); `stations.created_by` é `SET NULL`, o posto fica no mapa
+      sem dono. UI em `Profile.jsx` (seção "Excluir minha conta" abaixo das
+      abas, pede senha, link "Saiba mais" → `/excluir-conta`). Links de rodapé
+      em `Landing.jsx` e `Login.jsx`. E-mail de contato usado nas páginas:
+      **`contato@octa.eco.br`** — depende de esse endereço existir de fato
+      (encaminhamento a criar na Hostinger ou via Cloudflare Email Routing).
 
 **Estado em 2026-08-26: tudo implementado, testado, publicado em produção
 (PS2 **e** VPS — ver seção Deploy), commitado e enviado ao GitHub — árvore de
@@ -700,6 +717,40 @@ curl -s -o /dev/null -w "%{http_code}\n" https://octa.eco.br/api/health
 # direto no IP — deve travar/sem resposta (bloqueado)
 curl -sk --max-time 6 --resolve octa.eco.br:443:2.25.119.168 https://octa.eco.br/
 ```
+
+## Publicação na Google Play (TWA)
+
+Iniciado em 2026-09-09. O usuário já tem conta na Play Console (**conta
+pessoal** — cai na regra de teste fechado com 12 testadores por 14 dias antes
+de liberar produção). O Octa é PWA, então o caminho é **TWA (Trusted Web
+Activity)** empacotado com **Bubblewrap** (CLI oficial do Google) — envolve o
+site ao vivo num app Android fino, valida por Digital Asset Links, gera um
+`.aab`. Sem reescrever em React Native pro lançamento.
+
+Progresso:
+- [x] **Política de privacidade** no ar (`/privacidade`) e **exclusão de conta**
+      in-app + web (`/excluir-conta`, `DELETE /api/auth/me`) — ver entrada no
+      "Status atual".
+- [ ] Criar o e-mail **`contato@octa.eco.br`** (citado nas duas páginas).
+- [ ] `assetlinks.json` em `https://octa.eco.br/.well-known/` com o
+      SHA-256 da chave de assinatura (depende da chave existir).
+- [ ] Instalar Bubblewrap na PS2 (precisa de JDK 17 + Android SDK),
+      `bubblewrap init --manifest https://octa.eco.br/manifest.json`,
+      definir package name (sugestão `br.eco.octa`), gerar `.aab`.
+- [ ] Play App Signing + guardar/backup da upload key.
+- [ ] Ficha da loja: ícone 512, feature graphic 1024×500, ≥2 screenshots,
+      descrições curta/longa.
+- [ ] Formulário de Segurança de Dados (tem que bater com a política:
+      localização precisa em primeiro plano, e-mail, nome, atividade no app;
+      sem compartilhamento com terceiros pra publicidade; exclusão de conta
+      disponível), classificação de conteúdo (IARC), público-alvo (18+).
+- [ ] Conta de teste pro time de revisão do Google (o app exige login).
+- [ ] Teste fechado: 12 testadores por 14 dias (conta pessoal) → produção.
+
+Detalhe do manifest atual (`frontend/public/manifest.json`): nome "Octa",
+ícones 192/512/512-maskable, `display: standalone`, `theme_color`/
+`background_color` `#060d1f`, `orientation: portrait`, `scope`/`start_url` `/`.
+Já satisfaz o mínimo do Bubblewrap.
 
 ## Próximas features planejadas (roadmap)
 

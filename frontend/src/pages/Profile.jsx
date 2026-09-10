@@ -42,6 +42,11 @@ export default function Profile() {
   const [savingVehicle, setSavingVehicle] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadAll = useCallback(async () => {
     try {
@@ -242,6 +247,28 @@ export default function Profile() {
   function handleLogout() {
     logout();
     navigate('/login');
+  }
+
+  async function handleDeleteAccount(e) {
+    e.preventDefault();
+    setDeleteError('');
+    if (!deletePassword) {
+      setDeleteError('Digite sua senha para confirmar.');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await api.delete('/auth/me', { data: { password: deletePassword } });
+      logout();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setDeleteError(
+        err.response?.data?.error ??
+        err.response?.data?.errors?.[0]?.msg ??
+        'Não foi possível excluir a conta.'
+      );
+      setDeletingAccount(false);
+    }
   }
 
   if (!user) return null;
@@ -700,6 +727,61 @@ export default function Profile() {
 
         </div>
       )}
+
+      {/* — Exclusão de conta (LGPD art. 18 + exigência da Google Play) — */}
+      <div className="px-4 mt-8 pt-6 border-t border-navy-600">
+        {!showDeleteAccount ? (
+          <button
+            onClick={() => { setShowDeleteAccount(true); setDeleteError(''); setDeletePassword(''); }}
+            className="text-sm text-slate-500 hover:text-rep-bad transition-colors"
+          >
+            Excluir minha conta
+          </button>
+        ) : (
+          <form onSubmit={handleDeleteAccount} className="bg-navy-800 border border-rep-bad/30 rounded-xl p-4">
+            <p className="font-semibold text-sm text-slate-200">Excluir minha conta</p>
+            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+              Apaga em definitivo seu perfil, veículos, abastecimentos, avaliações, votos e
+              favoritos. Postos que você cadastrou continuam no mapa, sem vínculo com a sua
+              conta. A ação não pode ser desfeita.{' '}
+              <a
+                href="/excluir-conta"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline"
+              >
+                Saiba mais
+              </a>
+            </p>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="Digite sua senha para confirmar"
+              autoComplete="current-password"
+              className="mt-3 w-full bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
+            />
+            {deleteError && <p className="text-sm text-rep-bad mt-2">{deleteError}</p>}
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => { setShowDeleteAccount(false); setDeletePassword(''); setDeleteError(''); }}
+                disabled={deletingAccount}
+                className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={deletingAccount}
+                className="flex-1 bg-rep-bad text-white font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50"
+              >
+                {deletingAccount ? 'Excluindo...' : 'Excluir permanentemente'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

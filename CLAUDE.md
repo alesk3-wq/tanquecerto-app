@@ -682,7 +682,9 @@ não foi feito na sessão que escreveu esta nota — conferir se já rolou).
 
 **Fluxo de deploy** (as duas ficam em sync manualmente, sem CI/CD):
 1. Editar/testar na PS2 (`/opt/tanquecerto`), commit + push pro GitHub
-   (`origin` = `github.com/alesk3-wq/tanquecerto-app`).
+   (`origin` = `github.com/alesk3-wq/tanquecerto-app`, **repositório público** —
+   nunca commitar segredo/senha real ali, nem de contas de teste; `.env` já é
+   ignorado e nunca foi commitado, conferido em 2026-09-11).
 2. `ssh octa-vps "cd /opt/octa && git pull"`.
 3. Mudança só de frontend: `cd frontend && npm run build` (Express serve o
    `dist/` na hora, sem restart). Mudança de backend: reiniciar

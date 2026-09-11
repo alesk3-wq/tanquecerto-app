@@ -152,7 +152,7 @@ Preencher em *Play Console → Política e programas → App content*.
 | Seção | Resposta |
 |---|---|
 | **Política de Privacidade** | `https://octa.eco.br/privacidade` |
-| **Acesso ao app** | O app **exige login** para a maior parte das telas. Fornecer credenciais de teste: e-mail `revisao@octa.eco.br` (a criar) + senha, com o e-mail já confirmado no banco. Instrução: "Faça login com a conta fornecida. Para testar o registro de abastecimento, é necessário estar fisicamente próximo de um posto (validação por GPS) — a listagem de postos e a navegação no mapa funcionam sem isso." |
+| **Acesso ao app** | ✅ Conta de teste criada em produção (2026-09-11): **`revisao@octa.eco.br`**, e-mail já confirmado direto no banco (não depende de caixa de entrada real). **Senha: fora deste arquivo** (o repo é público) — está só no chat da sessão; pegar ali e colar direto no formulário do Play Console, não versionar em lugar nenhum. Resposta em "Todos os recursos ficam disponíveis sem login?": **Não**. Texto de instrução pro formulário: <br>*"Faça login com a conta fornecida. O mapa, a lista de postos e os detalhes de cada posto ficam visíveis sem login. Para testar o registro de abastecimento ou uma avaliação, é necessário estar fisicamente a até 200m de um posto cadastrado (o app valida por GPS) — não é possível simular isso do escritório; o restante do fluxo (perfil, veículos, favoritos) não tem essa exigência."* |
 | **Anúncios** | Não contém anúncios. |
 | **Classificação de conteúdo** | Responder o questionário IARC (seção 6). |
 | **Público-alvo e conteúdo** | Faixas etárias: **apenas 18+**. Não é voltado para crianças. |
@@ -272,7 +272,7 @@ declarar IP isoladamente quando não é usado para rastreamento — não declara
 - [ ] App content: privacidade, acesso ao app (conta de teste), anúncios, público-alvo
 - [ ] Classificação de conteúdo (questionário)
 - [ ] Segurança dos dados (formulário)
-- [ ] Criar conta de teste `revisao@octa.eco.br` (e-mail confirmado no banco)
+- [x] Criar conta de teste `revisao@octa.eco.br` (e-mail confirmado no banco, senha entregue fora do repo)
 - [ ] Trilha de teste fechado + 12 testadores + opt-in
 - [ ] Aguardar 14 dias
 - [ ] Aplicar para produção → release de produção → revisão do Google

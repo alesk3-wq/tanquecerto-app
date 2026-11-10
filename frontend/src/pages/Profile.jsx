@@ -1,12 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
-import ReputationBadge from '../components/ReputationBadge';
 import ErrorMessage from '../components/ErrorMessage';
 import Icon from '../components/Icon';
 import StatCard from '../components/StatCard';
-import { FUEL_LABELS, FUEL_ORDER } from '../constants/fuels';
+import BottomSheet, { SheetButton } from '../components/BottomSheet';
+import { fieldClass } from '../components/tank/VehicleForm';
+import useSheet from '../hooks/useSheet';
+import { FUEL_LABELS } from '../constants/fuels';
+
+// Perfil — só o que é do USUÁRIO: dados da conta, as avaliações que ele fez,
+// sair e excluir conta. Abastecimentos/veículos/favoritos moram em "Meu
+// Tanque" (/tanque). Chega-se aqui tocando no avatar/nome (topo no celular,
+// rodapé da sidebar no desktop).
 
 const TYPE_LABELS = { good: '✅ Positivo', suspect: '⚠️ Suspeito', bad: '❌ Negativo' };
 
@@ -14,239 +21,62 @@ const cardClass =
   'block w-full text-left bg-navy-800 rounded-xl border border-navy-600 p-4 cursor-pointer ' +
   'hover:border-accent/30 hover:bg-navy-750 transition-all active:scale-[0.98]';
 
+function Row({ icon, label, hint, onClick, danger }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`w-full min-h-14 flex items-center gap-3 px-4 text-left transition-colors hover:bg-navy-750 ${danger ? 'text-rep-bad' : 'text-slate-200'}`}>
+      <span className="w-5 flex justify-center flex-shrink-0" aria-hidden="true">{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint && <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>}
+      </span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-slate-600">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  );
+}
+
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [tab, setTab] = useState(location.state?.tab ?? 'refuels');
-  const [reports, setReports]     = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [favError, setFavError]   = useState('');
+  const [sheet, openSheet, closeSheet] = useSheet('acao');
 
-  const [refuels, setRefuels]   = useState([]);
-  const [refuelStats, setRefuelStats] = useState({ total: 0, total_liters: 0, total_spent: 0 });
-  const [refuelVehicleFilter, setRefuelVehicleFilter] = useState('');
-  const [refuelsLoading, setRefuelsLoading] = useState(false);
-  const [editingRefuelId, setEditingRefuelId] = useState(null);
-  const [refuelEditForm, setRefuelEditForm] = useState(null);
-  const [refuelEditError, setRefuelEditError] = useState('');
-  const [savingRefuel, setSavingRefuel] = useState(false);
-  const [confirmDeleteRefuelId, setConfirmDeleteRefuelId] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [vehicles, setVehicles]   = useState([]);
-  const [vehicleForm, setVehicleForm] = useState({ brand: '', model: '', year: '', default_fuel_type: '' });
-  const [editingVehicleId, setEditingVehicleId] = useState(null);
-  const [vehicleError, setVehicleError] = useState('');
-  const [savingVehicle, setSavingVehicle] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-
-  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
 
-  // setState só após o await; "loading" é ligado pelo estado inicial ou pelo retry
   const loadAll = useCallback(async () => {
     try {
-      const [r, f, rf, v] = await Promise.all([
-        api.get('/reports/mine'),
-        api.get('/favorites'),
-        api.get('/refuels/mine'),
-        api.get('/vehicles/mine'),
-      ]);
+      const [r, f] = await Promise.all([api.get('/reports/mine'), api.get('/favorites')]);
       setReports(r.data.data);
-      setFavorites(f.data);
-      setRefuels(rf.data.data);
-      setRefuelStats({ total: rf.data.total, total_liters: rf.data.total_liters, total_spent: rf.data.total_spent });
-      setVehicles(v.data);
+      setFavoritesCount(f.data.length);
       setError('');
     } catch {
-      setError('Não foi possível carregar seus dados.');
+      setError('Não foi possível carregar suas avaliações.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  async function handleVehicleFilterChange(vehicleId) {
-    setRefuelVehicleFilter(vehicleId);
-    setRefuelsLoading(true);
-    try {
-      const { data } = await api.get('/refuels/mine', vehicleId ? { params: { vehicle_id: vehicleId } } : undefined);
-      setRefuels(data.data);
-      setRefuelStats({ total: data.total, total_liters: data.total_liters, total_spent: data.total_spent });
-    } catch {
-      setError('Não foi possível filtrar os abastecimentos.');
-    } finally {
-      setRefuelsLoading(false);
-    }
-  }
-
-  // Depois de editar/excluir um abastecimento, recarrega abastecimentos (com
-  // o filtro atual) E veículos — trocar de carro num abastecimento muda o
-  // consumo médio dos DOIS carros envolvidos, e é o backend quem sabe
-  // recalcular isso, não o frontend.
-  async function reloadRefuelsAndVehicles() {
-    const [rf, v] = await Promise.all([
-      api.get('/refuels/mine', refuelVehicleFilter ? { params: { vehicle_id: refuelVehicleFilter } } : undefined),
-      api.get('/vehicles/mine'),
-    ]);
-    setRefuels(rf.data.data);
-    setRefuelStats({ total: rf.data.total, total_liters: rf.data.total_liters, total_spent: rf.data.total_spent });
-    setVehicles(v.data);
-  }
-
-  function startEditRefuel(r) {
-    setEditingRefuelId(r.id);
-    setRefuelEditForm({
-      vehicle_id: r.vehicle_id ? String(r.vehicle_id) : '',
-      fuel_type: r.fuel_type,
-      liters: String(r.liters),
-      total_value: String(r.total_value),
-      km: r.km != null ? String(r.km) : '',
-      full_tank: r.full_tank,
-      notes: r.notes ?? '',
-      refueled_at: r.refueled_at.slice(0, 10),
-    });
-    setRefuelEditError('');
-  }
-
-  function cancelEditRefuel() {
-    setEditingRefuelId(null);
-    setRefuelEditForm(null);
-    setRefuelEditError('');
-  }
-
-  async function saveRefuel(e) {
-    e.preventDefault();
-    setRefuelEditError('');
-    if (!refuelEditForm.liters || !refuelEditForm.total_value) {
-      setRefuelEditError('Informe litros e valor total.');
-      return;
-    }
-    if (refuelEditForm.vehicle_id && !refuelEditForm.km) {
-      setRefuelEditError('Informe o KM do veículo.');
-      return;
-    }
-    setSavingRefuel(true);
-    try {
-      await api.put(`/refuels/${editingRefuelId}`, {
-        vehicle_id: refuelEditForm.vehicle_id ? parseInt(refuelEditForm.vehicle_id) : null,
-        fuel_type: refuelEditForm.fuel_type,
-        liters: parseFloat(refuelEditForm.liters),
-        total_value: parseFloat(refuelEditForm.total_value),
-        km: refuelEditForm.km ? parseInt(refuelEditForm.km) : null,
-        full_tank: refuelEditForm.full_tank,
-        notes: refuelEditForm.notes || null,
-        refueled_at: refuelEditForm.refueled_at,
-      });
-      cancelEditRefuel();
-      await reloadRefuelsAndVehicles();
-    } catch (err) {
-      setRefuelEditError(err.response?.data?.error ?? err.response?.data?.errors?.[0]?.msg ?? 'Erro ao salvar.');
-    } finally {
-      setSavingRefuel(false);
-    }
-  }
-
-  async function removeRefuel(id) {
-    setConfirmDeleteRefuelId(null);
-    try {
-      await api.delete(`/refuels/${id}`);
-      if (editingRefuelId === id) cancelEditRefuel();
-      await reloadRefuelsAndVehicles();
-    } catch {
-      setError('Não foi possível excluir o abastecimento.');
-    }
-  }
-
-  function startEditVehicle(v) {
-    setEditingVehicleId(v.id);
-    setVehicleForm({ brand: v.brand, model: v.model, year: String(v.year), default_fuel_type: v.default_fuel_type ?? '' });
-    setVehicleError('');
-  }
-
-  function cancelEditVehicle() {
-    setEditingVehicleId(null);
-    setVehicleForm({ brand: '', model: '', year: '', default_fuel_type: '' });
-    setVehicleError('');
-  }
-
-  async function saveVehicle(e) {
-    e.preventDefault();
-    setVehicleError('');
-    if (!vehicleForm.brand.trim() || !vehicleForm.model.trim() || !vehicleForm.year) {
-      setVehicleError('Preencha marca, modelo e ano.');
-      return;
-    }
-    setSavingVehicle(true);
-    try {
-      const payload = {
-        brand: vehicleForm.brand.trim(),
-        model: vehicleForm.model.trim(),
-        year: parseInt(vehicleForm.year),
-        default_fuel_type: vehicleForm.default_fuel_type || null,
-      };
-      if (editingVehicleId) {
-        const { data } = await api.put(`/vehicles/${editingVehicleId}`, payload);
-        // Spread de v primeiro: PUT de edição não devolve is_default, então
-        // preserva o valor que já estava carregado em vez de perdê-lo.
-        setVehicles((prev) => prev.map((v) => (v.id === editingVehicleId ? { ...v, ...data } : v)));
-        setEditingVehicleId(null);
-      } else {
-        const { data } = await api.post('/vehicles', payload);
-        setVehicles((prev) => [data, ...prev]);
-      }
-      setVehicleForm({ brand: '', model: '', year: '', default_fuel_type: '' });
-    } catch (err) {
-      setVehicleError(err.response?.data?.error ?? 'Erro ao salvar veículo.');
-    } finally {
-      setSavingVehicle(false);
-    }
-  }
-
-  async function setDefaultVehicle(id) {
-    setVehicleError('');
-    try {
-      await api.put(`/vehicles/${id}/default`);
-      setVehicles((prev) => prev.map((v) => ({ ...v, is_default: v.id === id })));
-    } catch {
-      setVehicleError('Não foi possível definir o carro padrão.');
-    }
-  }
-
-  async function removeVehicle(id) {
-    setVehicleError('');
-    setConfirmDeleteId(null);
-    try {
-      await api.delete(`/vehicles/${id}`);
-      setVehicles((prev) => prev.filter((v) => v.id !== id));
-      if (editingVehicleId === id) cancelEditVehicle();
-    } catch {
-      setVehicleError('Não foi possível remover o veículo.');
-    }
-  }
-
   // Fetch-on-mount: os setState acontecem após o await, não sincronamente.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  async function removeFavorite(stationId, e) {
-    e.stopPropagation();
-    setFavError('');
-    try {
-      await api.post(`/favorites/${stationId}`);
-      // só remove da lista depois que o servidor confirmou
-      setFavorites((prev) => prev.filter((s) => s.id !== stationId));
-    } catch {
-      setFavError('Não foi possível remover o favorito.');
-    }
-  }
-
   function handleLogout() {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
+  }
+
+  function openDeleteAccount() {
+    setDeletePassword('');
+    setDeleteError('');
+    openSheet('excluir-conta');
   }
 
   async function handleDeleteAccount(e) {
@@ -274,7 +104,6 @@ export default function Profile() {
   if (!user) return null;
 
   const positives = reports.filter((r) => r.type === 'good').length;
-  const initial   = user.name[0].toUpperCase();
 
   return (
     <div className="max-w-2xl mx-auto pb-8">
@@ -283,519 +112,121 @@ export default function Profile() {
         style={{ background: 'linear-gradient(160deg, #0d2246 0%, #0a1628 70%, #060d1f 100%)' }}>
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, #ff7a00 0%, transparent 50%)' }} />
-
         <div className="relative z-10 flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-navy-950 shadow-lg shadow-accent/20 flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #ff7a00, #d96800)' }}>
-            {initial}
+            {user.name[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-xl text-slate-100 truncate">{user.name}</h1>
             <p className="text-sm text-slate-400 truncate">{user.email}</p>
           </div>
-          <button onClick={handleLogout}
-            className="text-sm text-slate-500 hover:text-rep-bad border border-navy-600 hover:border-rep-bad/50 px-3 py-1.5 rounded-lg transition-all flex-shrink-0">
-            Sair
-          </button>
         </div>
-
-        {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-3 mt-6">
-          <StatCard value={reports.length}   label="Avaliações"  color="text-accent" />
-          <StatCard value={positives}        label="Positivas"   color="text-rep-good" />
-          <StatCard value={favorites.length} label="Favoritos"   color="text-slate-300" extra={<Icon name="coracao" size={12} />} />
+          <StatCard value={reports.length} label="Avaliações" color="text-accent" />
+          <StatCard value={positives} label="Positivas" color="text-rep-good" />
+          <StatCard value={favoritesCount} label="Favoritos" color="text-slate-300" extra={<Icon name="coracao" size={12} />} />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-navy-600 px-4 mt-2">
-        {[
-          { key: 'refuels',   label: 'Abastecimentos',   count: refuelStats.total, icon: <Icon name="combustivel" size={14} /> },
-          { key: 'favorites', label: 'Favoritos',        count: favorites.length, icon: <Icon name="coracao" size={14} /> },
-          { key: 'vehicles',  label: 'Meus Carros',      count: vehicles.length,   icon: '🚗' },
-          { key: 'reports',   label: 'Avaliações',      count: reports.length },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap flex-shrink-0 transition-colors ${
-              tab === t.key
-                ? 'border-accent text-accent'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            {t.icon && <span aria-hidden="true">{t.icon}</span>}
-            {t.label}
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-navy-600 text-slate-400">
-              {t.count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-14">
-          <div className="w-7 h-7 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : error ? (
-        <div className="px-4 mt-4">
+      {/* Minhas avaliações */}
+      <section className="px-4 mt-6">
+        <h2 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+          <Icon name="estrela" size={14} />Minhas avaliações
+        </h2>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="w-7 h-7 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : error ? (
           <ErrorMessage message={error} onRetry={() => { setLoading(true); setError(''); loadAll(); }} />
+        ) : reports.length === 0 ? (
+          <div className="text-center py-10 bg-navy-800 rounded-2xl border border-dashed border-navy-600">
+            <p className="text-slate-500 text-sm">Você ainda não fez nenhuma avaliação.</p>
+            <button onClick={() => navigate('/mapa')} className="mt-3 text-sm text-accent hover:underline font-medium">
+              Explorar postos →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {reports.map((r) => (
+              <button key={r.id} type="button" className={cardClass} onClick={() => navigate(`/stations/${r.station_id}`)}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
+                    {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
+                  </div>
+                  <span className="text-sm whitespace-nowrap flex-shrink-0">{TYPE_LABELS[r.type]}</span>
+                </div>
+                {r.description && <p className="text-sm text-slate-400 mt-2 line-clamp-2">{r.description}</p>}
+                <div className="flex items-center gap-2 mt-3 pt-2 border-t border-navy-600">
+                  <span className="text-xs text-slate-600 bg-navy-950/50 px-2 py-0.5 rounded-full">{FUEL_LABELS[r.fuel_type]}</span>
+                  <span className="text-xs text-slate-600 ml-auto">{new Date(r.created_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Conta */}
+      <section className="px-4 mt-8">
+        <h2 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+          <Icon name="configuracoes" size={14} />Conta
+        </h2>
+        <div className="bg-navy-800 border border-navy-600 rounded-xl overflow-hidden divide-y divide-navy-600">
+          <Row
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
+            label="Sair da conta"
+            onClick={() => openSheet('sair')}
+          />
+          <Row
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>}
+            label="Excluir minha conta"
+            hint="Apaga seus dados em definitivo"
+            onClick={openDeleteAccount}
+            danger
+          />
         </div>
-      ) : (
-        <div className="px-4 mt-4">
+      </section>
 
-          {/* — TAB AVALIAÇÕES — */}
-          {tab === 'reports' && (
-            <>
-              {reports.length === 0 ? (
-                <EmptyState icon={<Icon name="estrela" size={28} />} text="Você ainda não fez nenhuma avaliação." onExplore={() => navigate('/')} />
-              ) : (
-                <div className="space-y-3">
-                  {reports.map((r) => (
-                    <button key={r.id} type="button"
-                      className={cardClass}
-                      onClick={() => navigate(`/stations/${r.station_id}`)}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
-                          {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
-                        </div>
-                        <span className="text-sm whitespace-nowrap flex-shrink-0">{TYPE_LABELS[r.type]}</span>
-                      </div>
-                      {r.description && (
-                        <p className="text-sm text-slate-400 mt-2 line-clamp-2">{r.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-navy-600">
-                        <span className="text-xs text-slate-600 bg-navy-950/50 px-2 py-0.5 rounded-full">
-                          {FUEL_LABELS[r.fuel_type]}
-                        </span>
-                        <span className="text-xs text-slate-600 ml-auto">
-                          {new Date(r.created_at).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* — TAB ABASTECIMENTOS — */}
-          {tab === 'refuels' && (
-            <>
-              {/* Filtro por carro */}
-              {vehicles.length > 0 && (
-                <select
-                  value={refuelVehicleFilter}
-                  onChange={(e) => handleVehicleFilterChange(e.target.value)}
-                  aria-label="Filtrar abastecimentos por carro"
-                  className="w-full bg-navy-800 border border-navy-600 text-slate-200 text-sm rounded-xl px-4 py-2.5 mb-3 focus:outline-none focus:border-accent/40 cursor-pointer"
-                >
-                  <option value="">Todos os carros</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.year})</option>
-                  ))}
-                </select>
-              )}
-
-              <div className={refuelsLoading ? 'opacity-60 pointer-events-none transition-opacity' : 'transition-opacity'}>
-              {/* Totais */}
-              {refuelStats.total > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <StatCard value={refuelStats.total} label="Total" color="text-accent" />
-                  <StatCard value={`${parseFloat(refuelStats.total_liters).toFixed(0)}L`} label="Litros" color="text-slate-300" />
-                  <StatCard value={`R$${parseFloat(refuelStats.total_spent).toFixed(0)}`} label="Gasto" color="text-rep-good" />
-                </div>
-              )}
-              {refuelEditError && <ErrorMessage message={refuelEditError} className="mb-3" />}
-              {refuels.length === 0 ? (
-                <EmptyState
-                  icon={<Icon name="combustivel" size={28} />}
-                  text={refuelVehicleFilter ? 'Nenhum abastecimento registrado com esse carro.' : 'Nenhum abastecimento registrado.'}
-                  onExplore={() => navigate('/')}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {refuels.map((r) => (
-                    editingRefuelId === r.id ? (
-                      <form key={r.id} onSubmit={saveRefuel}
-                        className="bg-navy-800 rounded-xl border border-accent/30 p-4 space-y-3">
-                        <p className="font-medium text-slate-300 text-sm">{r.station_name}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            value={refuelEditForm.vehicle_id}
-                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, vehicle_id: e.target.value })}
-                            className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
-                          >
-                            <option value="">Sem veículo</option>
-                            {vehicles.map((v) => (
-                              <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.year})</option>
-                            ))}
-                          </select>
-                          <input
-                            type="date"
-                            value={refuelEditForm.refueled_at}
-                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, refueled_at: e.target.value })}
-                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"
-                          />
-                          <select
-                            value={refuelEditForm.fuel_type}
-                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, fuel_type: e.target.value })}
-                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
-                          >
-                            {FUEL_ORDER.map((f) => <option key={f} value={f}>{FUEL_LABELS[f]}</option>)}
-                          </select>
-                          <input
-                            type="number" step="0.001" min="0.1" placeholder="Litros"
-                            value={refuelEditForm.liters}
-                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, liters: e.target.value })}
-                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                          />
-                          <input
-                            type="number" step="0.01" min="0.01" placeholder="Total (R$)"
-                            value={refuelEditForm.total_value}
-                            onChange={(e) => setRefuelEditForm({ ...refuelEditForm, total_value: e.target.value })}
-                            className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                          />
-                          {refuelEditForm.vehicle_id && (
-                            <input
-                              type="number" min="0" placeholder="KM do veículo"
-                              value={refuelEditForm.km}
-                              onChange={(e) => setRefuelEditForm({ ...refuelEditForm, km: e.target.value })}
-                              className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                            />
-                          )}
-                          <label className="col-span-2 flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" checked={refuelEditForm.full_tank}
-                              onChange={(e) => setRefuelEditForm({ ...refuelEditForm, full_tank: e.target.checked })}
-                              className="accent-accent w-4 h-4" />
-                            Completei o tanque
-                          </label>
-                        </div>
-                        <div className="flex gap-2">
-                          <button type="submit" disabled={savingRefuel}
-                            className="flex-1 bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
-                            {savingRefuel ? 'Salvando...' : 'Salvar alterações'}
-                          </button>
-                          <button type="button" onClick={cancelEditRefuel}
-                            className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5">
-                            Cancelar
-                          </button>
-                        </div>
-                      </form>
-                    ) : confirmDeleteRefuelId === r.id ? (
-                      <div key={r.id} className="bg-navy-800 rounded-xl border border-navy-600 p-4 flex items-center justify-between gap-2">
-                        <p className="text-sm text-slate-300 min-w-0">Excluir este abastecimento?</p>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => setConfirmDeleteRefuelId(null)}
-                            className="text-xs font-semibold text-slate-400 border border-navy-600 rounded-lg px-3 py-1.5"
-                          >Não</button>
-                          <button
-                            onClick={() => removeRefuel(r.id)}
-                            className="text-xs font-semibold text-white bg-rep-bad rounded-lg px-3 py-1.5"
-                          >Sim, excluir</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={r.id}
-                        role="button"
-                        tabIndex={0}
-                        className={cardClass}
-                        onClick={() => navigate(`/stations/${r.station_id}`)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/stations/${r.station_id}`); }}>
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm text-slate-200 truncate">{r.station_name}</p>
-                            {r.station_brand && <p className="text-xs text-slate-500 mt-0.5">{r.station_brand}</p>}
-                            {r.vehicle_brand && (
-                              <p className="text-xs text-slate-500 mt-0.5">🚗 {r.vehicle_brand} {r.vehicle_model}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-slate-500">
-                              {new Date(r.refueled_at).toLocaleDateString('pt-BR')}
-                            </span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); startEditRefuel(r); }}
-                              title="Editar abastecimento"
-                              aria-label="Editar abastecimento"
-                              className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
-                            >✎</button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteRefuelId(r.id); }}
-                              title="Excluir abastecimento"
-                              aria-label="Excluir abastecimento"
-                              className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
-                            >✕</button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                            <p className="text-xs text-slate-500">{FUEL_LABELS[r.fuel_type]}</p>
-                          </div>
-                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                            <p className="text-xs font-semibold text-slate-200">{parseFloat(r.liters).toFixed(2)} L</p>
-                          </div>
-                          <div className="bg-navy-950 rounded-lg px-1 py-1.5">
-                            <p className="text-xs font-semibold text-accent">R$ {parseFloat(r.total_value).toFixed(2)}</p>
-                          </div>
-                        </div>
-                        {r.price_per_liter && (
-                          <p className="text-xs text-slate-600 mt-2 text-right">R$ {parseFloat(r.price_per_liter).toFixed(3)}/L</p>
-                        )}
-                      </div>
-                    )
-                  ))}
-                </div>
-              )}
-              </div>
-            </>
-          )}
-
-          {/* — TAB FAVORITOS — */}
-          {tab === 'favorites' && (
-            <>
-              {favError && <ErrorMessage message={favError} className="mb-3" />}
-              {favorites.length === 0 ? (
-                <EmptyState icon={<Icon name="coracao" size={28} />} text="Você ainda não favoritou nenhum posto." onExplore={() => navigate('/')} />
-              ) : (
-                <div className="space-y-3">
-                  {favorites.map((s) => (
-                    <div key={s.id}
-                      role="button"
-                      tabIndex={0}
-                      className={cardClass}
-                      onClick={() => navigate(`/stations/${s.id}`)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/stations/${s.id}`); }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm text-slate-200 truncate">{s.name}</p>
-                          {s.brand   && <p className="text-xs text-slate-500 mt-0.5">{s.brand}</p>}
-                          {s.address && (
-                            <p className="text-xs text-slate-600 mt-0.5 truncate flex items-center gap-1">
-                              <Icon name="pin" size={11} />{s.address}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <ReputationBadge reputation={s.reputation} />
-                          <button
-                            onClick={(e) => removeFavorite(s.id, e)}
-                            title="Remover dos favoritos"
-                            aria-label={`Remover ${s.name} dos favoritos`}
-                            className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
-                          >✕</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* — TAB MEUS CARROS — */}
-          {tab === 'vehicles' && (
-            <>
-              {vehicleError && <ErrorMessage message={vehicleError} className="mb-3" />}
-
-              <form onSubmit={saveVehicle} className="bg-navy-800 rounded-xl border border-navy-600 p-4 mb-4 space-y-3">
-                <p className="font-medium text-slate-300 text-sm">
-                  {editingVehicleId ? 'Editar carro' : 'Adicionar carro'}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={vehicleForm.brand}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, brand: e.target.value })}
-                    placeholder="Marca (ex: Honda)"
-                    className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                  />
-                  <input
-                    value={vehicleForm.model}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })}
-                    placeholder="Modelo (ex: City)"
-                    className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                  />
-                  <input
-                    value={vehicleForm.year}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, year: e.target.value })}
-                    placeholder="Ano (ex: 2015)"
-                    type="number"
-                    className="bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-                  />
-                  <select
-                    value={vehicleForm.default_fuel_type}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, default_fuel_type: e.target.value })}
-                    className="col-span-2 bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
-                  >
-                    <option value="">Combustível padrão (opcional)</option>
-                    {FUEL_ORDER.map((f) => <option key={f} value={f}>{FUEL_LABELS[f]}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <button type="submit" disabled={savingVehicle}
-                    className="flex-1 bg-accent text-navy-950 font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50">
-                    {savingVehicle ? 'Salvando...' : editingVehicleId ? 'Salvar alterações' : 'Adicionar carro'}
-                  </button>
-                  {editingVehicleId && (
-                    <button type="button" onClick={cancelEditVehicle}
-                      className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              {vehicles.length === 0 ? (
-                <EmptyState icon="🚗" text="Você ainda não cadastrou nenhum carro." onExplore={() => navigate('/')} />
-              ) : (
-                <div className="space-y-3">
-                  {vehicles.map((v) => (
-                    <div key={v.id} className="bg-navy-800 rounded-xl border border-navy-600 p-4 flex items-center justify-between gap-2">
-                      {confirmDeleteId === v.id ? (
-                        <>
-                          <p className="text-sm text-slate-300 min-w-0">
-                            Excluir {v.brand} {v.model} ({v.year})?
-                          </p>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => setConfirmDeleteId(null)}
-                              className="text-xs font-semibold text-slate-400 border border-navy-600 rounded-lg px-3 py-1.5"
-                            >Não</button>
-                            <button
-                              onClick={() => removeVehicle(v.id)}
-                              className="text-xs font-semibold text-white bg-rep-bad rounded-lg px-3 py-1.5"
-                            >Sim, excluir</button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm text-slate-200 truncate">
-                              {v.brand} {v.model} <span className="text-slate-500 font-normal">({v.year})</span>
-                            </p>
-                            {v.default_fuel_type && (
-                              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                                <Icon name="combustivel" size={11} />{FUEL_LABELS[v.default_fuel_type]}
-                              </p>
-                            )}
-                            {v.consumption?.length > 0 && (
-                              <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
-                                {v.consumption.map((c) => (
-                                  <span key={c.fuel_type} className="flex items-center gap-1">
-                                    <Icon name="grafico" size={11} />{c.avg_consumption} km/l ({FUEL_LABELS[c.fuel_type]})
-                                  </span>
-                                ))}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            {v.is_default ? (
-                              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 rounded-full px-2 py-0.5 whitespace-nowrap flex items-center gap-1">
-                                <Icon name="estrela" size={11} />Padrão
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => setDefaultVehicle(v.id)}
-                                title="Definir como carro padrão"
-                                aria-label={`Definir ${v.brand} ${v.model} como carro padrão`}
-                                className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
-                              >☆</button>
-                            )}
-                            <button
-                              onClick={() => startEditVehicle(v)}
-                              title="Editar carro"
-                              aria-label={`Editar ${v.brand} ${v.model}`}
-                              className="text-slate-600 hover:text-accent text-base transition-colors leading-none"
-                            >✎</button>
-                            <button
-                              onClick={() => setConfirmDeleteId(v.id)}
-                              title="Remover carro"
-                              aria-label={`Remover ${v.brand} ${v.model}`}
-                              className="text-slate-600 hover:text-rep-bad text-lg transition-colors leading-none"
-                            >✕</button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
+      {/* — Confirmar saída — */}
+      <BottomSheet open={sheet === 'sair'} onClose={closeSheet} title="Sair da conta?"
+        subtitle="Você vai precisar entrar de novo pra registrar abastecimentos e avaliar postos.">
+        <div className="space-y-3 mt-2">
+          <SheetButton variant="primary" onClick={handleLogout}>Sair</SheetButton>
+          <SheetButton onClick={closeSheet}>Cancelar</SheetButton>
         </div>
-      )}
+      </BottomSheet>
 
       {/* — Exclusão de conta (LGPD art. 18 + exigência da Google Play) — */}
-      <div className="px-4 mt-8 pt-6 border-t border-navy-600">
-        {!showDeleteAccount ? (
-          <button
-            onClick={() => { setShowDeleteAccount(true); setDeleteError(''); setDeletePassword(''); }}
-            className="text-sm text-slate-500 hover:text-rep-bad transition-colors"
-          >
-            Excluir minha conta
-          </button>
-        ) : (
-          <form onSubmit={handleDeleteAccount} className="bg-navy-800 border border-rep-bad/30 rounded-xl p-4">
-            <p className="font-semibold text-sm text-slate-200">Excluir minha conta</p>
-            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-              Apaga em definitivo seu perfil, veículos, abastecimentos, avaliações, votos e
-              favoritos. Postos que você cadastrou continuam no mapa, sem vínculo com a sua
-              conta. A ação não pode ser desfeita.{' '}
-              <a
-                href="/excluir-conta"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline"
-              >
-                Saiba mais
-              </a>
-            </p>
-            <input
-              type="password"
-              value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Digite sua senha para confirmar"
-              autoComplete="current-password"
-              className="mt-3 w-full bg-navy-950 border border-navy-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent placeholder-slate-600"
-            />
-            {deleteError && <p className="text-sm text-rep-bad mt-2">{deleteError}</p>}
-            <div className="flex gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => { setShowDeleteAccount(false); setDeletePassword(''); setDeleteError(''); }}
-                disabled={deletingAccount}
-                className="bg-navy-950 border border-navy-600 text-slate-400 font-semibold text-sm rounded-lg px-4 py-2.5 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={deletingAccount}
-                className="flex-1 bg-rep-bad text-white font-bold text-sm rounded-lg px-3 py-2.5 disabled:opacity-50"
-              >
-                {deletingAccount ? 'Excluindo...' : 'Excluir permanentemente'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+      <BottomSheet open={sheet === 'excluir-conta'} onClose={closeSheet} title="Excluir minha conta">
+        <form onSubmit={handleDeleteAccount}>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Apaga em definitivo seu perfil, veículos, abastecimentos, avaliações, votos e
+            favoritos. Postos que você cadastrou continuam no mapa, sem vínculo com a sua
+            conta. A ação não pode ser desfeita.{' '}
+            <a href="/excluir-conta" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              Saiba mais
+            </a>
+          </p>
+          <input
+            type="password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="Digite sua senha para confirmar"
+            autoComplete="current-password"
+            className={`${fieldClass} mt-4`}
+          />
+          {deleteError && <p className="text-sm text-rep-bad mt-2">{deleteError}</p>}
+          <div className="space-y-3 mt-4">
+            <SheetButton type="submit" variant="danger" disabled={deletingAccount}>
+              {deletingAccount ? 'Excluindo...' : 'Excluir permanentemente'}
+            </SheetButton>
+            <SheetButton onClick={closeSheet} disabled={deletingAccount}>Cancelar</SheetButton>
+          </div>
+        </form>
+      </BottomSheet>
     </div>
   );
 }
-
-function EmptyState({ icon, text, onExplore }) {
-  return (
-    <div className="text-center py-12 bg-navy-800 rounded-2xl border border-dashed border-navy-600">
-      <p className="text-3xl mb-2" aria-hidden="true">{icon}</p>
-      <p className="text-slate-500 text-sm">{text}</p>
-      <button onClick={onExplore}
-        className="mt-3 text-sm text-accent hover:underline font-medium">
-        Explorar postos →
-      </button>
-    </div>
-  );
-}
-

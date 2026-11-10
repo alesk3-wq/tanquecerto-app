@@ -81,17 +81,26 @@ export default function Sidebar() {
       {/* Footer — user info ou login/register */}
       <div className="border-t border-navy-600 p-4 flex-shrink-0">
         {user ? (
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-navy-950 flex-shrink-0 shadow-md"
-              style={{ background: 'linear-gradient(135deg, #ff7a00, #d96800)' }}
+          <div className="flex items-center gap-2">
+            {/* Avatar + nome → Perfil */}
+            <Link
+              to="/profile"
+              title="Meu perfil"
+              className={`flex-1 min-w-0 flex items-center gap-3 -m-1.5 p-1.5 rounded-xl transition-colors hover:bg-[#ffffff08] ${
+                pathname === '/profile' ? 'bg-accent/10' : ''
+              }`}
             >
-              {user.name[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-200 truncate leading-tight">{user.name}</p>
-              <p className="text-xs text-slate-500 truncate mt-0.5">{user.email}</p>
-            </div>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-navy-950 flex-shrink-0 shadow-md"
+                style={{ background: 'linear-gradient(135deg, #ff7a00, #d96800)' }}
+              >
+                {user.name[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-200 truncate leading-tight">{user.name}</p>
+                <p className="text-xs text-slate-500 truncate mt-0.5">{user.email}</p>
+              </div>
+            </Link>
             <button
               onClick={handleLogout}
               title="Sair"

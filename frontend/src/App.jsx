@@ -19,6 +19,7 @@ import AddServiceReview from './pages/AddServiceReview';
 import AddStation from './pages/AddStation';
 import AddRefuel from './pages/AddRefuel';
 import Profile from './pages/Profile';
+import Tank from './pages/Tank';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="/stations/:id/service-review" element={<AddServiceReview />} />
               <Route path="/stations/:id/refuel" element={<AddRefuel />} />
               <Route path="/add-station"         element={<AddStation />} />
+              <Route path="/tanque"              element={<Tank />} />
               <Route path="/profile"             element={<Profile />} />
             </Route>
 

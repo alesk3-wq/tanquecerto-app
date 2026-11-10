@@ -342,7 +342,7 @@ export default function AddRefuel() {
               </p>
             )}
             {vehicles.length > 0 && (
-              <button type="button" onClick={() => navigate('/profile', { state: { tab: 'vehicles' } })}
+              <button type="button" onClick={() => navigate('/tanque?aba=veiculos')}
                 className="text-xs text-accent hover:underline mt-1.5">
                 Gerenciar veículos →
               </button>

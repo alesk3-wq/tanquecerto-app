@@ -632,6 +632,32 @@ produção: política de privacidade (`/privacidade`) e exclusão de conta
 (`/excluir-conta` + `DELETE /api/auth/me`). E-mail `contato@octa.eco.br`
 já criado pelo usuário (Cloudflare Email Routing → Gmail dele).
 
+**2026-11-09 — Usabilidade: cards flutuantes + reorganização Perfil / "Meu Tanque"**
+(pedido do usuário: botões de editar/excluir carro e abastecimento colados demais,
+toque acidental). Só frontend, sem mudança de API. Testado com Playwright na PS2
+(390px e 1366px): editar/excluir abastecimento, excluir/adicionar carro, definir
+padrão, voltar do Android fechando o card.
+- `components/BottomSheet.jsx`: card flutuante no padrão do painel do mapa
+  (sobe de baixo no celular, modal no desktop) + `SheetButton` (48px, largura
+  total) + `SheetDeleteAction` (exclusão em 2 etapas, separada por linha).
+- `hooks/useSheet.js`: amarra o card a `?item=`/`?acao=` na URL — abrir empilha
+  histórico, então o **voltar do Android fecha o card** (importante no TWA).
+- **Nova aba "Meu Tanque"** (`/tanque`, `pages/Tank.jsx`) no lugar da aba Perfil
+  (BottomNav/Sidebar), ícone de bomba **provisório** (o usuário vai mandar o SVG
+  definitivo → trocar em `constants/nav.jsx`). Sub-abas `?aba=abastecimentos|
+  veiculos|favoritos`. Tocar num abastecimento/carro abre o card dele com
+  todas as ações (`components/tank/RefuelSheet.jsx`, `VehicleSheet.jsx`);
+  edição acontece dentro do card (`RefuelForm.jsx`, `VehicleForm.jsx`).
+  "Adicionar carro" virou botão que abre card (antes era form fixo no topo).
+  Favoritos: tocar abre o posto; o ✕ da lista saiu (desfavoritar pelo ♥ do posto).
+- **Perfil** (`/profile`) agora só tem dados do usuário, "Minhas avaliações" e
+  seção Conta (Sair e Excluir conta, ambos confirmados em card). Acesso pelo
+  avatar no Topbar (celular) ou pelo avatar/nome no rodapé da Sidebar (desktop).
+  Não é mais aba → ganhou botão voltar. `/mapa` passou a não ter botão voltar
+  (é aba).
+- Pendência antiga, não resolvida aqui: `/refuels/mine` devolve só os 20 mais
+  recentes e a lista não pagina.
+
 Também existe uma automação de Instagram em construção (pausada),
 documentada separadamente em `/opt/SERVIDOR.md` — não faz parte deste
 app/repo.

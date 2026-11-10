@@ -33,13 +33,18 @@ export function AuthProvider({ children }) {
     setUser(userData);
   }
 
+  // Depois de editar os dados pessoais (PUT /auth/me devolve o usuário atualizado).
+  function updateUser(userData) {
+    setUser(userData);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

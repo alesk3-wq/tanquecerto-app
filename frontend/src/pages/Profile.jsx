@@ -8,6 +8,9 @@ import StatCard from '../components/StatCard';
 import BottomSheet, { SheetButton } from '../components/BottomSheet';
 import { fieldClass } from '../components/tank/VehicleForm';
 import useSheet from '../hooks/useSheet';
+import PersonalDataForm from '../components/profile/PersonalDataForm';
+import ChangePasswordForm from '../components/profile/ChangePasswordForm';
+import { formatPhone } from '../lib/phone';
 import { FUEL_LABELS } from '../constants/fuels';
 
 // Perfil — só o que é do USUÁRIO: dados da conta, as avaliações que ele fez,
@@ -38,7 +41,7 @@ function Row({ icon, label, hint, onClick, danger }) {
 }
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [sheet, openSheet, closeSheet] = useSheet('acao');
 
@@ -120,6 +123,11 @@ export default function Profile() {
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-xl text-slate-100 truncate">{user.name}</h1>
             <p className="text-sm text-slate-400 truncate">{user.email}</p>
+            {user.created_at && (
+              <p className="text-xs text-slate-500 mt-1">
+                No Octa desde {new Date(user.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </p>
+            )}
           </div>
         </div>
         <div className="relative z-10 grid grid-cols-3 gap-3 mt-6">
@@ -176,6 +184,17 @@ export default function Profile() {
         </h2>
         <div className="bg-navy-800 border border-navy-600 rounded-xl overflow-hidden divide-y divide-navy-600">
           <Row
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+            label="Dados pessoais"
+            hint={user.phone ? `Nome e telefone · ${formatPhone(user.phone)}` : 'Nome e telefone'}
+            onClick={() => openSheet('dados')}
+          />
+          <Row
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+            label="Alterar senha"
+            onClick={() => openSheet('senha')}
+          />
+          <Row
             icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
             label="Sair da conta"
             onClick={() => openSheet('sair')}
@@ -189,6 +208,27 @@ export default function Profile() {
           />
         </div>
       </section>
+
+      {/* Sobre */}
+      <section className="px-4 mt-8">
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Sobre o Octa</h2>
+        <div className="bg-navy-800 border border-navy-600 rounded-xl overflow-hidden divide-y divide-navy-600">
+          <Row icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} label="Política de privacidade"
+            onClick={() => window.open('/privacidade', '_blank', 'noopener')} />
+          <Row icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>} label="Fale com a gente" hint="contato@octa.eco.br"
+            onClick={() => { window.location.href = 'mailto:contato@octa.eco.br'; }} />
+        </div>
+      </section>
+
+      {/* — Dados pessoais — */}
+      <BottomSheet open={sheet === 'dados'} onClose={closeSheet} title="Dados pessoais">
+        <PersonalDataForm user={user} onSaved={(u) => { updateUser(u); closeSheet(); }} onCancel={closeSheet} />
+      </BottomSheet>
+
+      {/* — Alterar senha — */}
+      <BottomSheet open={sheet === 'senha'} onClose={closeSheet} title="Alterar senha">
+        <ChangePasswordForm onDone={closeSheet} onCancel={closeSheet} />
+      </BottomSheet>
 
       {/* — Confirmar saída — */}
       <BottomSheet open={sheet === 'sair'} onClose={closeSheet} title="Sair da conta?"

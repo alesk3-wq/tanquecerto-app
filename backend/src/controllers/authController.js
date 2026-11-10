@@ -24,7 +24,7 @@ async function register(req, res, next) {
     const hash = await bcrypt.hash(password, 12);
     const [result] = await db.query(
       'INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)',
-      [name, email, hash, phone || null]
+      [name, email, hash, normalizePhone(phone)]
     );
 
     // Cadastro NÃO loga automaticamente — login fica bloqueado até confirmar
@@ -71,7 +71,12 @@ async function login(req, res, next) {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, is_admin: isAdmin(user.email) },
+      // Mesmo formato do GET /auth/me — o Perfil usa phone/created_at, e um
+      // usuário recém-logado sem esses campos apagaria o telefone ao salvar.
+      user: {
+        id: user.id, name: user.name, email: user.email, phone: user.phone,
+        created_at: user.created_at, is_admin: isAdmin(user.email),
+      },
     });
   } catch (err) {
     next(err);
@@ -86,6 +91,57 @@ async function me(req, res, next) {
     );
     if (!rows.length) return res.status(404).json({ error: 'Usuário não encontrado.' });
     res.json({ ...rows[0], is_admin: isAdmin(rows[0].email) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Telefone: guarda só os dígitos (DDD + número, 10 ou 11 dígitos). Vazio → null.
+// A validação de formato fica na rota; aqui só normaliza.
+function normalizePhone(phone) {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  return digits || null;
+}
+
+// Edição dos dados pessoais (Perfil → Conta → Dados pessoais). E-mail fica
+// de fora de propósito: trocar e-mail exige reconfirmação, é outro fluxo.
+async function updateMe(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { name, phone } = req.body;
+    await db.query('UPDATE users SET name = ?, phone = ? WHERE id = ?', [name, normalizePhone(phone), req.user.id]);
+
+    const [[user]] = await db.query('SELECT id, name, email, phone, created_at FROM users WHERE id = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    res.json({ ...user, is_admin: isAdmin(user.email) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Troca de senha logado: exige a senha atual (quem pega o aparelho
+// desbloqueado não consegue trocar a senha e sequestrar a conta).
+async function changePassword(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { current_password, new_password } = req.body;
+    const [[user]] = await db.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    const valid = await bcrypt.compare(current_password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Senha atual incorreta.' });
+
+    if (await bcrypt.compare(new_password, user.password)) {
+      return res.status(400).json({ error: 'A nova senha precisa ser diferente da atual.' });
+    }
+
+    const hash = await bcrypt.hash(new_password, 12);
+    await db.query('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.id]);
+    res.json({ message: 'Senha alterada com sucesso.' });
   } catch (err) {
     next(err);
   }
@@ -223,4 +279,4 @@ async function resendConfirmation(req, res, next) {
   }
 }
 
-module.exports = { register, login, me, deleteAccount, forgotPassword, resetPassword, confirmEmail, resendConfirmation };
+module.exports = { register, login, me, updateMe, changePassword, deleteAccount, forgotPassword, resetPassword, confirmEmail, resendConfirmation };

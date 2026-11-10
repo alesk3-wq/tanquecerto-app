@@ -658,6 +658,25 @@ padrão, voltar do Android fechando o card.
 - Pendência antiga, não resolvida aqui: `/refuels/mine` devolve só os 20 mais
   recentes e a lista não pagina.
 
+**2026-11-10 — Perfil: dados pessoais, alterar senha, "Sobre"**
+- Backend: `PUT /api/auth/me` (nome + telefone; telefone opcional, 10–11
+  dígitos, guardado **só dígitos** — `normalizePhone`, também aplicado no
+  cadastro) e `PUT /api/auth/me/password` (exige senha atual, recusa senha
+  igual, rate limit `changePasswordLimiter` 10/15min). Senha atual errada
+  responde 401 — não desloga porque o interceptor do axios ignora `/auth/*`.
+  `POST /auth/login` passou a devolver `phone` e `created_at` (igual ao
+  `/auth/me`) — sem isso, um usuário recém-logado abriria "Dados pessoais"
+  com telefone vazio e apagaria o telefone ao salvar.
+- Frontend: Perfil → Conta ganhou "Dados pessoais" e "Alterar senha" (cards
+  `components/profile/PersonalDataForm.jsx` / `ChangePasswordForm.jsx`),
+  "No Octa desde <mês/ano>" no topo e seção "Sobre o Octa" (política de
+  privacidade, contato). `AuthContext.updateUser`. Máscara em `lib/phone.js`.
+  E-mail fica só leitura (troca de e-mail exige reconfirmação — não feito).
+- **Política de privacidade e Data safety atualizadas**: o cadastro já
+  coletava telefone opcional e nenhum dos dois mencionava — corrigido
+  (`privacidade.html` "Última atualização: 10/11/2026"; PLAYSTORE.md seção 7
+  ganhou a linha "Número de telefone — opcional").
+
 Também existe uma automação de Instagram em construção (pausada),
 documentada separadamente em `/opt/SERVIDOR.md` — não faz parte deste
 app/repo.

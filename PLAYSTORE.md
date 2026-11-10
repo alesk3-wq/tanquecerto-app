@@ -204,6 +204,7 @@ Perguntas de topo:
 |---|---|---|---|---|
 | **Nome** | Sim | Não | Obrigatório | Gestão de conta |
 | **E-mail** | Sim | Não | Obrigatório | Gestão de conta; confirmação de cadastro e redefinição de senha (via Resend) |
+| **Número de telefone** | Sim | Não | **Opcional** | Gestão de conta (contato sobre a conta, se necessário). Informado no cadastro ou em Perfil → Dados pessoais; editável/apagável pelo usuário |
 | **Localização precisa** | Sim | **Sim** (Nominatim/OpenStreetMap ao cadastrar um posto; Google Maps ao pedir rota) | Opcional | Funcionalidade do app (mostrar postos próximos, preencher endereço); prevenção de fraude/segurança (confirmar presença no posto) |
 | **Ações no app** (abastecimentos, avaliações, veículos, favoritos) | Sim | Não | Obrigatório | Funcionalidade do app; reputação e consumo agregados |
 | **Dados de compra / financeiros** | Não | — | — | (valores de abastecimento são "ações no app", não histórico de compra) |

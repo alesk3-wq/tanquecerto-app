@@ -41,4 +41,14 @@ const resendConfirmationLimiter = rateLimit({
   handler: handler('Muitas solicitações. Tente novamente mais tarde.'),
 });
 
-module.exports = { loginLimiter, registerLimiter, forgotPasswordLimiter, resendConfirmationLimiter };
+// Troca de senha logado: protege contra força bruta da senha atual por quem
+// pegou uma sessão aberta. Mesmo perfil do login.
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: handler('Muitas tentativas. Tente novamente em alguns minutos.'),
+});
+
+module.exports = { loginLimiter, registerLimiter, forgotPasswordLimiter, resendConfirmationLimiter, changePasswordLimiter };
